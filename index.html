@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#050506">
 <title>Hector Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="topbar.js" defer></script>
 <style>
 :root {
@@ -1289,20 +1290,156 @@ body::after {
     loadTomorrow
   );
 
-  // ---------- Boot ----------
-  rollover();
-  processStreak();
-  loadToday();
-  loadTomorrow();
-  renderStreak();
-  updateDayRing();
-  setInterval(updateDayRing, 60 * 1000);
-  startTicker();
+  // ---------- Supabase sync (goals + streak across devices) ----------
+  const GC_SUPABASE_URL = 'https://veuocgntnerdbgzfcrzb.supabase.co';
+  const GC_SUPABASE_KEY = 'sb_publishable_PCTHhbGBXma7hvAFHZpPVA_bWw1rmSH';
+  const GC_APP_KEY = 'goals';
 
-  // Re-render when storage changes from another tab (or our bridged parent).
-  window.addEventListener('storage', () => {
-    loadToday(); loadTomorrow(); renderStreak();
-  });
+  let gcSupa = null;
+  let gcPushTimer = null;
+  let gcSuppressSync = true; // suppress pushes until first pull (or timeout) completes
+  let gcLastSyncedJson = null;
+
+  const _gcOrigSet = localStorage.setItem.bind(localStorage);
+  const _gcOrigRemove = localStorage.removeItem.bind(localStorage);
+
+  function gcIsSyncedKey(k) {
+    return k === 'goal_streak_v1' || (typeof k === 'string' && k.indexOf('goals:') === 0);
+  }
+  localStorage.setItem = function(k, v) {
+    _gcOrigSet(k, v);
+    try { if (!gcSuppressSync && gcIsSyncedKey(k)) gcSchedulePush(); } catch (e) {}
+  };
+  localStorage.removeItem = function(k) {
+    _gcOrigRemove(k);
+    try { if (!gcSuppressSync && gcIsSyncedKey(k)) gcSchedulePush(); } catch (e) {}
+  };
+
+  function gcCollectState() {
+    const out = { byDate: {}, streak: null };
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('goals:') === 0) {
+        try { out.byDate[k.slice('goals:'.length)] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+      }
+    }
+    const s = localStorage.getItem('goal_streak_v1');
+    if (s != null) { try { out.streak = JSON.parse(s); } catch (e) {} }
+    return out;
+  }
+
+  function gcApplyRemoteState(remote) {
+    if (!remote || typeof remote !== 'object') return false;
+    const wasSuppressed = gcSuppressSync;
+    gcSuppressSync = true;
+    let changed = false;
+    try {
+      const localGoalKeys = new Set();
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('goals:') === 0) localGoalKeys.add(k);
+      }
+      const byDate = remote.byDate || {};
+      for (const dateStr of Object.keys(byDate)) {
+        const fullKey = 'goals:' + dateStr;
+        const incoming = JSON.stringify(byDate[dateStr]);
+        if (localStorage.getItem(fullKey) !== incoming) {
+          try { _gcOrigSet(fullKey, incoming); changed = true; } catch (e) {}
+        }
+        localGoalKeys.delete(fullKey);
+      }
+      // Remove local date keys that aren't in remote (handles deletes from other device)
+      for (const fullKey of localGoalKeys) {
+        try { _gcOrigRemove(fullKey); changed = true; } catch (e) {}
+      }
+      if (remote.streak != null) {
+        const incoming = JSON.stringify(remote.streak);
+        if (localStorage.getItem('goal_streak_v1') !== incoming) {
+          try { _gcOrigSet('goal_streak_v1', incoming); changed = true; } catch (e) {}
+        }
+      }
+    } finally { gcSuppressSync = wasSuppressed; }
+    if (changed) {
+      try { loadToday(); loadTomorrow(); renderStreak(); } catch (e) {}
+    }
+    return changed;
+  }
+
+  function gcSchedulePush() {
+    if (gcPushTimer) clearTimeout(gcPushTimer);
+    gcPushTimer = setTimeout(gcPushNow, 400);
+  }
+
+  async function gcPushNow() {
+    if (!gcSupa) return;
+    const state = gcCollectState();
+    const j = JSON.stringify(state);
+    if (j === gcLastSyncedJson) return;
+    try {
+      await gcSupa.from('app_state').upsert(
+        { key: GC_APP_KEY, data: state, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+      gcLastSyncedJson = j;
+    } catch (e) {}
+  }
+
+  async function gcInit() {
+    if (!window.supabase) return;
+    if (GC_SUPABASE_URL.indexOf('PASTE-') === 0) return;
+    gcSupa = window.supabase.createClient(GC_SUPABASE_URL, GC_SUPABASE_KEY);
+    try {
+      const { data } = await gcSupa
+        .from('app_state').select('data').eq('key', GC_APP_KEY).maybeSingle();
+      if (data && data.data) {
+        gcApplyRemoteState(data.data);
+        gcLastSyncedJson = JSON.stringify(gcCollectState());
+      }
+    } catch (e) {}
+    try {
+      gcSupa.channel('app_state_goals')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + GC_APP_KEY },
+          (payload) => {
+            const next = payload.new && payload.new.data;
+            if (!next) return;
+            const j = JSON.stringify(next);
+            if (j === gcLastSyncedJson) return;
+            gcApplyRemoteState(next);
+            gcLastSyncedJson = j;
+          })
+        .subscribe();
+    } catch (e) {}
+  }
+
+  // ---------- Boot ----------
+  (async function boot() {
+    // Wait for the first remote pull (or 2s timeout) before running rollover —
+    // otherwise rollover could delete old date keys before we've seen what
+    // the other device has stored under them.
+    await Promise.race([
+      gcInit(),
+      new Promise((r) => setTimeout(r, 2000))
+    ]);
+    gcSuppressSync = false;
+
+    rollover();
+    processStreak();
+    loadToday();
+    loadTomorrow();
+    renderStreak();
+    updateDayRing();
+    setInterval(updateDayRing, 60 * 1000);
+    startTicker();
+
+    // Re-render when storage changes from another tab (or our bridged parent).
+    window.addEventListener('storage', () => {
+      loadToday(); loadTomorrow(); renderStreak();
+    });
+
+    // Push post-boot state (rollover may have changed things)
+    gcPushNow();
+  })();
 })();
 </script>
 </body>
