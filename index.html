@@ -711,8 +711,12 @@ body::after {
     if (typeof key === 'string' && key.indexOf('goals:') === 0) {
       window.dispatchEvent(new CustomEvent('goals-changed'));
     }
+    if (typeof gcMaybePush === 'function') gcMaybePush(key);
   }
-  function storeDelete(key) { try { localStorage.removeItem(key); } catch (e) {} }
+  function storeDelete(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
+    if (typeof gcMaybePush === 'function') gcMaybePush(key);
+  }
   function storeListKeys(prefix) {
     const out = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -1306,14 +1310,13 @@ body::after {
   function gcIsSyncedKey(k) {
     return k === 'goal_streak_v1' || (typeof k === 'string' && k.indexOf('goals:') === 0);
   }
-  localStorage.setItem = function(k, v) {
-    _gcOrigSet(k, v);
-    try { if (!gcSuppressSync && gcIsSyncedKey(k)) gcSchedulePush(); } catch (e) {}
-  };
-  localStorage.removeItem = function(k) {
-    _gcOrigRemove(k);
-    try { if (!gcSuppressSync && gcIsSyncedKey(k)) gcSchedulePush(); } catch (e) {}
-  };
+  // Called from storeSet / storeDelete so we don't have to override
+  // localStorage.setItem on the window — some browsers (e.g. Firefox)
+  // silently refuse to let user code reassign Storage prototype methods.
+  function gcMaybePush(k) {
+    if (gcSuppressSync) return;
+    if (gcIsSyncedKey(k)) gcSchedulePush();
+  }
 
   function gcCollectState() {
     const out = { byDate: {}, streak: null };
