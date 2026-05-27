@@ -692,6 +692,23 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   // during boot doesn't race-upload stale data when the pull overwrites it.
   let _syncSuppress = true;
   let _supaClient = null;
+  // Lazy-load @supabase/supabase-js from CDN if the page didn't ship it.
+  // Some pages (health, finance, po-water) don't have the script tag, but
+  // we still need Supabase to run sync from inside topbar.js.
+  let _supaScriptPromise = null;
+  function ensureSupabaseScript() {
+    if (window.supabase) return Promise.resolve(true);
+    if (_supaScriptPromise) return _supaScriptPromise;
+    _supaScriptPromise = new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      s.async = true;
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      (document.head || document.documentElement).appendChild(s);
+    });
+    return _supaScriptPromise;
+  }
   function getSupa() {
     if (_supaClient) return _supaClient;
     if (!window.supabase) return null;
@@ -794,7 +811,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   };
 
   async function bootGlobalSync() {
-    if (!getSupa()) { _syncSuppress = false; return; }
+    // Ensure @supabase/supabase-js is available — load it if the page didn't.
+    const supaLoaded = await ensureSupabaseScript();
+    if (!supaLoaded || !getSupa()) { _syncSuppress = false; return; }
     // Pull both buckets (with a 2.5s ceiling so we don't block forever)
     await Promise.race([
       Promise.all([pullBucket('health'), pullBucket('finance')]),
