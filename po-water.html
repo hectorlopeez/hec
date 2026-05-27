@@ -705,6 +705,7 @@ html, body {
   }
   function saveState() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+    if (window.hecSync) window.hecSync.pushBucket('health');
   }
   let state = loadState();
   $('appTitle').textContent = CONFIG.appTitle || 'Water Coach';

@@ -470,7 +470,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     render();
     const btn = document.getElementById('topbarWaterAdd');
     if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 220); }
-    // Global sync will pick this up via Storage.setItem patch (or 30s fallback).
+    if (window.hecSync) window.hecSync.pushBucket('health');
   }
 
   function blockGesture(e) { e.preventDefault(); }
@@ -586,6 +586,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     acct.amount = (Number(acct.amount) || 0) + amount;
     bankSetAccounts(accounts);
     logFinanceActivity('bank', acct.name + (note ? ' · ' + note : ''), amount, 'income');
+    if (window.hecSync) window.hecSync.pushBucket('finance');
     try { window.dispatchEvent(new StorageEvent('storage', { key: 'nw:bank' })); } catch (e) {}
     return { ok: true, account: acct.name, amount };
   }
@@ -658,10 +659,10 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   // =============================================================
   // Global Supabase sync — buckets for "health" and "finance"
   //
-  // Pulls on boot + on focus, subscribes to realtime changes, and
-  // pushes (debounced) whenever a relevant localStorage key changes.
-  // This runs on every page that loads topbar.js — including finance.html
-  // and the embedded water tracker — so all devices stay in sync.
+  // Mirrors the proven pattern from index.html (goals) and studies.html:
+  // each page that owns a bucket's data calls window.hecSync.pushBucket()
+  // after writes. Topbar.js handles pull-on-boot, realtime subscribe,
+  // and exposes the push API so pages don't each implement Supabase.
   // =============================================================
   const SYNC_BUCKETS = {
     health:  { keys: ['po_water_v1'],                                        prefixes: ['stack:'] },
@@ -671,10 +672,6 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const def = SYNC_BUCKETS[bucket]; if (!def || !key) return false;
     if (def.keys.indexOf(key) >= 0) return true;
     return def.prefixes.some(p => key.indexOf(p) === 0);
-  }
-  function detectBucket(key) {
-    for (const b in SYNC_BUCKETS) if (syncOwns(b, key)) return b;
-    return null;
   }
   function collectBucket(bucket) {
     const out = {};
@@ -687,11 +684,13 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     return out;
   }
 
-  let _syncReady = false;
-  let _syncSuppress = true;
   const _syncLastJson = {};
+  // Bind originals so applyBucket can bypass any future page-level wrappers.
   const _origSet    = localStorage.setItem.bind(localStorage);
   const _origRemove = localStorage.removeItem.bind(localStorage);
+  // Suppress pushes until the initial pull lands, so a write that happens
+  // during boot doesn't race-upload stale data when the pull overwrites it.
+  let _syncSuppress = true;
   let _supaClient = null;
   function getSupa() {
     if (_supaClient) return _supaClient;
@@ -710,27 +709,22 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       const k = localStorage.key(i);
       if (k && syncOwns(bucket, k)) ourKeys.add(k);
     }
-    const wasSuppressed = _syncSuppress;
-    _syncSuppress = true;
-    try {
-      for (const k of Object.keys(remote)) {
-        const incomingStr = JSON.stringify(remote[k]);
-        if (localStorage.getItem(k) !== incomingStr) {
-          try { _origSet(k, incomingStr); changed.push(k); } catch (e) {}
-        }
-        ourKeys.delete(k);
+    for (const k of Object.keys(remote)) {
+      const incomingStr = JSON.stringify(remote[k]);
+      if (localStorage.getItem(k) !== incomingStr) {
+        try { _origSet(k, incomingStr); changed.push(k); } catch (e) {}
       }
-      // remove any local keys that the remote no longer has
-      for (const k of ourKeys) {
-        try { _origRemove(k); changed.push(k); } catch (e) {}
-      }
-    } finally { _syncSuppress = wasSuppressed; }
+      ourKeys.delete(k);
+    }
+    // Remove any local keys that the remote no longer has
+    for (const k of ourKeys) {
+      try { _origRemove(k); changed.push(k); } catch (e) {}
+    }
     if (changed.length) {
       try { window.dispatchEvent(new CustomEvent('storage-pulled', { detail: { bucket, keys: changed }})); } catch (e) {}
       for (const k of changed) {
         try { window.dispatchEvent(new StorageEvent('storage', { key: k })); } catch (e) {}
       }
-      // Also refresh the topbar water pill if water changed
       if (changed.indexOf('po_water_v1') >= 0) try { render(); } catch (e) {}
     }
     return changed;
@@ -753,6 +747,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 
   const _pushTimers = {};
   function schedulePush(bucket) {
+    if (!SYNC_BUCKETS[bucket]) return;
     if (_syncSuppress) return;
     clearTimeout(_pushTimers[bucket]);
     _pushTimers[bucket] = setTimeout(() => pushBucket(bucket), 600);
@@ -789,40 +784,27 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     } catch (e) {}
   }
 
-  function patchStorage() {
-    try {
-      const proto = Object.getPrototypeOf(localStorage) || Storage.prototype;
-      const origSet    = proto.setItem;
-      const origRemove = proto.removeItem;
-      proto.setItem = function (k, v) {
-        origSet.call(this, k, v);
-        if (_syncSuppress) return;
-        const bucket = detectBucket(k);
-        if (bucket) schedulePush(bucket);
-      };
-      proto.removeItem = function (k) {
-        origRemove.call(this, k);
-        if (_syncSuppress) return;
-        const bucket = detectBucket(k);
-        if (bucket) schedulePush(bucket);
-      };
-      return true;
-    } catch (e) { return false; }
-  }
+  // Expose to pages so their storeSet/storeDelete wrappers can fire a push
+  // immediately after writing. Mirrors the pattern from index.html/studies.html.
+  window.hecSync = {
+    pushBucket: schedulePush,
+    pushBucketNow: pushBucket,
+    pullBucket: pullBucket,
+    buckets: Object.keys(SYNC_BUCKETS)
+  };
 
   async function bootGlobalSync() {
     if (!getSupa()) { _syncSuppress = false; return; }
-    patchStorage();
     // Pull both buckets (with a 2.5s ceiling so we don't block forever)
     await Promise.race([
       Promise.all([pullBucket('health'), pullBucket('finance')]),
       new Promise(r => setTimeout(r, 2500))
     ]);
     _syncSuppress = false;
-    _syncReady = true;
     subscribeBucket('health');
     subscribeBucket('finance');
-    // Fallback periodic check in case Storage patch didn't take (e.g. Firefox)
+    // Safety net: every 30s, push any bucket whose local state drifted
+    // (e.g. a page that didn't call hecSync.pushBucket after a write).
     setInterval(() => {
       for (const bucket of Object.keys(SYNC_BUCKETS)) {
         const cur = JSON.stringify(collectBucket(bucket));

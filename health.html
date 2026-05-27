@@ -523,7 +523,18 @@ main {
   'use strict';
 
   const storeGet = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-  const storeSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const storeSet = (k, v) => {
+    localStorage.setItem(k, JSON.stringify(v));
+    if (window.hecSync && (k.indexOf('stack:') === 0 || k === 'po_water_v1')) {
+      window.hecSync.pushBucket('health');
+    }
+  };
+  const storeDelete = (k) => {
+    localStorage.removeItem(k);
+    if (window.hecSync && (k.indexOf('stack:') === 0 || k === 'po_water_v1')) {
+      window.hecSync.pushBucket('health');
+    }
+  };
 
   function getActiveDate() {
     const now = new Date();

@@ -1895,8 +1895,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     try { const raw = localStorage.getItem(key); return raw == null ? null : JSON.parse(raw); }
     catch (e) { return null; }
   }
+  function isFinanceKey(k) {
+    return typeof k === 'string' && (
+      k.indexOf('nw:') === 0 ||
+      k === 'subs' || k === 'wishlist' ||
+      k === 'incoming_orders' || k === 'nw_currency'
+    );
+  }
   function storeSet(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    if (window.hecSync && isFinanceKey(key)) window.hecSync.pushBucket('finance');
+  }
+  function storeDelete(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
+    if (window.hecSync && isFinanceKey(key)) window.hecSync.pushBucket('finance');
   }
 
   // ============================================================
