@@ -101,6 +101,36 @@ body.has-bottombar .section > .gm-card:nth-of-type(2) { animation-delay: 0.26s; 
   z-index: -1;
 }
 .topbar > * { pointer-events: auto; }
+
+/* Cloud-sync status dot */
+.topbar-sync-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: auto; /* pushes everything else to the right */
+  background: rgba(255,255,255,0.25);
+  box-shadow: 0 0 0 0 transparent;
+  transition: background 0.25s ease, box-shadow 0.25s ease;
+  flex-shrink: 0;
+}
+.topbar-sync-dot.pending {
+  background: #F2C063;
+  box-shadow: 0 0 8px rgba(242,192,99,0.6);
+  animation: hec-sync-pulse 1.4s ease-in-out infinite;
+}
+.topbar-sync-dot.ok {
+  background: #6BE3A4;
+  box-shadow: 0 0 8px rgba(107,227,164,0.6);
+}
+.topbar-sync-dot.error {
+  background: #FF6B6B;
+  box-shadow: 0 0 10px rgba(255,107,107,0.7);
+  animation: hec-sync-pulse 1.2s ease-in-out infinite;
+}
+@keyframes hec-sync-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%      { opacity: 0.5; transform: scale(0.82); }
+}
+
 .topbar-water-wrap { display: flex; align-items: stretch; }
 .topbar-water-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -368,6 +398,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 
   const topbarHtml = `
 <header class="topbar" id="topbar" role="navigation" aria-label="Quick actions">
+  <span class="topbar-sync-dot pending" id="topbarSyncDot" aria-label="Cloud sync status" title="Cloud sync"></span>
   <div class="topbar-water-wrap">
     <a href="health.html#water" class="topbar-water-pill" id="topbarWater" aria-label="Water progress">
       <span class="topbar-pill-dot"></span>
@@ -752,25 +783,43 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   // Bind originals so applyBucket can bypass any future page-level wrappers.
   const _origSet    = localStorage.setItem.bind(localStorage);
   const _origRemove = localStorage.removeItem.bind(localStorage);
-  // Suppress pushes until the initial pull lands, so a write that happens
-  // during boot doesn't race-upload stale data when the pull overwrites it.
-  let _syncSuppress = true;
   let _supaClient = null;
+  // Tiny logger so the sync state is observable in Safari Web Inspector.
+  // Enable verbose logs with ?debug=sync on the URL.
+  const SYNC_DEBUG = /[?&]debug=sync/.test(window.location.search);
+  function slog() {
+    try {
+      const args = ['[hecSync]'].concat([].slice.call(arguments));
+      console.log.apply(console, args);
+    } catch (e) {}
+  }
+  function sdbg() { if (SYNC_DEBUG) slog.apply(null, arguments); }
   // Lazy-load @supabase/supabase-js from CDN if the page didn't ship it.
   // Some pages (health, finance, po-water) don't have the script tag, but
   // we still need Supabase to run sync from inside topbar.js.
+  // Retries up to 3× with a backoff — first iOS CDN load occasionally
+  // times out on slow links.
   let _supaScriptPromise = null;
   function ensureSupabaseScript() {
     if (window.supabase) return Promise.resolve(true);
     if (_supaScriptPromise) return _supaScriptPromise;
-    _supaScriptPromise = new Promise((resolve) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-      s.async = true;
-      s.onload = () => resolve(true);
-      s.onerror = () => resolve(false);
-      (document.head || document.documentElement).appendChild(s);
-    });
+    _supaScriptPromise = (async () => {
+      const URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const ok = await new Promise((resolve) => {
+          const s = document.createElement('script');
+          s.src = URL;
+          s.async = true;
+          s.onload  = () => resolve(true);
+          s.onerror = () => resolve(false);
+          (document.head || document.documentElement).appendChild(s);
+        });
+        if (ok && window.supabase) { sdbg('supabase-js loaded (attempt ' + attempt + ')'); return true; }
+        slog('supabase-js load failed (attempt ' + attempt + ')');
+        await new Promise(r => setTimeout(r, 800 * attempt));
+      }
+      return !!window.supabase;
+    })();
     return _supaScriptPromise;
   }
   function getSupa() {
@@ -778,7 +827,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     if (!window.supabase) return null;
     if (!TOPBAR_SUPABASE_URL || TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return null;
     try { _supaClient = window.supabase.createClient(TOPBAR_SUPABASE_URL, TOPBAR_SUPABASE_KEY); }
-    catch (e) { return null; }
+    catch (e) { slog('createClient failed', e && e.message); return null; }
     return _supaClient;
   }
 
@@ -807,50 +856,92 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   }
 
   async function pullBucket(bucket) {
-    const sb = getSupa(); if (!sb) return false;
+    const sb = getSupa();
+    if (!sb) { sdbg('pull', bucket, 'skipped — no supabase'); return false; }
     try {
-      const { data } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
-      if (data && data.data) {
-        applyBucket(bucket, data.data);
-        _syncLastJson[bucket] = JSON.stringify(collectBucket(bucket));
-        return true;
+      const { data, error } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
+      if (error) { slog('pull', bucket, 'error', error.message || error); return false; }
+      const remote = (data && data.data && typeof data.data === 'object') ? data.data : null;
+      if (remote) {
+        applyBucket(bucket, remote);
+        sdbg('pull', bucket, 'OK', Object.keys(remote).length, 'remote keys');
       } else {
-        _syncLastJson[bucket] = JSON.stringify(collectBucket(bucket));
+        sdbg('pull', bucket, 'empty row');
       }
-    } catch (e) {}
-    return false;
+      // Mark what we think the cloud holds. If local has keys the remote
+      // doesn't (e.g. a sub the user just added on this device), the next
+      // push will detect the drift and ship them up — merged with remote.
+      _syncLastJson[bucket] = JSON.stringify(remote || {});
+      const local = collectBucket(bucket);
+      if (JSON.stringify(local) !== _syncLastJson[bucket]) {
+        sdbg('pull', bucket, 'local has extras vs remote, scheduling push');
+        schedulePush(bucket);
+      }
+      return true;
+    } catch (e) {
+      slog('pull', bucket, 'threw', e && e.message);
+      return false;
+    }
   }
 
   const _pushTimers = {};
+  const _pushInFlight = {};   // bucket → true if a push is currently awaiting the network
+  const _pushQueued   = {};   // bucket → true if another push is needed after the current one
   function schedulePush(bucket) {
     if (!SYNC_BUCKETS[bucket]) return;
-    if (_syncSuppress) return;
+    if (_pushInFlight[bucket]) {
+      // Another push is mid-flight; mark a follow-up so we re-push as soon
+      // as the current one returns (catches the change it didn't see).
+      _pushQueued[bucket] = true;
+      return;
+    }
+    // No push in flight — fire immediately on the microtask queue.
     clearTimeout(_pushTimers[bucket]);
-    _pushTimers[bucket] = setTimeout(() => pushBucket(bucket), 600);
+    Promise.resolve().then(() => pushBucket(bucket));
   }
   // Merge-on-push: read current row, layer local on top, write merged.
-  // Prevents a device with a partial slice of the bucket (e.g. just
-  // nw:bank + nw:activity from the topbar's income button) from wiping
-  // out keys that only exist on other devices (nw:stocks, subs, …).
-  // Merge-on-push: read current row, layer local on top, write merged.
   async function pushBucket(bucket) {
-    const sb = getSupa(); if (!sb) return;
-    const local = collectBucket(bucket);
-    const localJson = JSON.stringify(local);
-    // Skip if nothing local changed since the last push/pull.
-    if (localJson === _syncLastJson[bucket]) return;
+    if (_pushInFlight[bucket]) { _pushQueued[bucket] = true; return; }
+    const sb = getSupa();
+    if (!sb) { sdbg('push', bucket, 'skipped — no supabase'); return; }
+    _pushInFlight[bucket] = true;
+    setSyncStatus('pending');
     try {
-      const { data } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
-      const current = (data && data.data && typeof data.data === 'object') ? data.data : {};
-      const merged = Object.assign({}, current, local);
-      await sb.from('app_state').upsert(
-        { key: bucket, data: merged, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      );
-      // Track local state (not merged), so safety-net + subsequent pushes
-      // can detect actual local drift without spamming.
-      _syncLastJson[bucket] = localJson;
-    } catch (e) {}
+      const local = collectBucket(bucket);
+      const localJson = JSON.stringify(local);
+      if (localJson === _syncLastJson[bucket]) {
+        sdbg('push', bucket, 'noop (no drift)');
+        setSyncStatus('ok');
+      } else {
+        const { data, error: selErr } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
+        if (selErr) slog('push', bucket, 'select error (continuing with empty current)', selErr.message || selErr);
+        const current = (data && data.data && typeof data.data === 'object') ? data.data : {};
+        const merged = Object.assign({}, current, local);
+        const { error: upErr } = await sb.from('app_state').upsert(
+          { key: bucket, data: merged, updated_at: new Date().toISOString() },
+          { onConflict: 'key' }
+        );
+        if (upErr) {
+          slog('push', bucket, 'upsert error', upErr.message || upErr);
+          setSyncStatus('error');
+        } else {
+          _syncLastJson[bucket] = localJson;
+          slog('push', bucket, 'OK', Object.keys(local).length, 'local keys ·', Object.keys(merged).length, 'merged');
+          setSyncStatus('ok');
+        }
+      }
+    } catch (e) {
+      slog('push', bucket, 'threw', e && e.message);
+      setSyncStatus('error');
+    } finally {
+      _pushInFlight[bucket] = false;
+      if (_pushQueued[bucket]) {
+        _pushQueued[bucket] = false;
+        // 200ms breath so a flurry of clicks coalesces into one extra push.
+        clearTimeout(_pushTimers[bucket]);
+        _pushTimers[bucket] = setTimeout(() => pushBucket(bucket), 200);
+      }
+    }
   }
 
   function subscribeBucket(bucket) {
@@ -864,11 +955,25 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
             if (!next) return;
             const j = JSON.stringify(next);
             if (j === _syncLastJson[bucket]) return;
+            sdbg('realtime', bucket, 'change received,', Object.keys(next).length, 'keys');
             applyBucket(bucket, next);
-            _syncLastJson[bucket] = j;
+            _syncLastJson[bucket] = JSON.stringify(collectBucket(bucket));
           })
-        .subscribe();
-    } catch (e) {}
+        .subscribe((status) => {
+          sdbg('realtime', bucket, 'channel status:', status);
+          if (status === 'SUBSCRIBED') setSyncStatus('ok');
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setSyncStatus('error');
+        });
+    } catch (e) { slog('subscribe', bucket, 'threw', e && e.message); }
+  }
+
+  // Sync status indicator — a tiny dot in the topbar. Lets you see at a
+  // glance whether the cloud sync is healthy without DevTools.
+  function setSyncStatus(state) {
+    const dot = document.getElementById('topbarSyncDot');
+    if (!dot) return;
+    dot.classList.remove('ok', 'pending', 'error');
+    dot.classList.add(state || 'pending');
   }
 
   // Expose to pages so their storeSet/storeDelete wrappers can fire a push
@@ -881,25 +986,34 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   };
 
   async function bootGlobalSync() {
+    setSyncStatus('pending');
+    sdbg('boot — debug enabled via ?debug=sync');
     // Ensure @supabase/supabase-js is available — load it if the page didn't.
     const supaLoaded = await ensureSupabaseScript();
-    if (!supaLoaded || !getSupa()) { _syncSuppress = false; return; }
-    // Pull both buckets (with a 2.5s ceiling so we don't block forever)
+    if (!supaLoaded || !getSupa()) {
+      slog('boot — supabase unavailable, sync disabled');
+      setSyncStatus('error');
+      return;
+    }
+    // Pull both buckets (with a 5s ceiling so we don't block forever).
+    // The ceiling is mostly for offline / DNS edge cases.
     await Promise.race([
       Promise.all([pullBucket('health'), pullBucket('finance')]),
-      new Promise(r => setTimeout(r, 2500))
+      new Promise(r => setTimeout(r, 5000))
     ]);
-    _syncSuppress = false;
+    setSyncStatus('ok');
     subscribeBucket('health');
     subscribeBucket('finance');
-    // Safety net: every 30s, push any bucket whose local state drifted
-    // (e.g. a page that didn't call hecSync.pushBucket after a write).
+    // Safety net: every 15s, push any bucket whose local state drifted.
     setInterval(() => {
       for (const bucket of Object.keys(SYNC_BUCKETS)) {
         const cur = JSON.stringify(collectBucket(bucket));
-        if (cur !== _syncLastJson[bucket]) schedulePush(bucket);
+        if (cur !== _syncLastJson[bucket]) {
+          sdbg('safety-net detected drift in', bucket, '→ push');
+          schedulePush(bucket);
+        }
       }
-    }, 30 * 1000);
+    }, 15 * 1000);
     // Re-pull on focus / visibility so other devices' changes show up fast
     window.addEventListener('focus', () => { pullBucket('health'); pullBucket('finance'); });
     document.addEventListener('visibilitychange', () => {
