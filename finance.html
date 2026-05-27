@@ -3373,6 +3373,28 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   safeRenderTicker();
   setInterval(safeRenderTicker, 1500);
 
+  // Re-render everything when the global sync (topbar.js) pulls fresh data
+  // from Supabase, or when another tab/page writes to one of our keys.
+  function refreshAllFromSync() {
+    try { renderAllNetWorth(); } catch (e) {}
+    try { renderActivity(); } catch (e) {}
+    try { renderSubs(); } catch (e) {}
+    try { renderWishlist(); } catch (e) {}
+    try { renderOrders(); } catch (e) {}
+    try { safeRenderTicker(); } catch (e) {}
+  }
+  window.addEventListener('storage-pulled', (e) => {
+    if (!e || !e.detail) { refreshAllFromSync(); return; }
+    if (e.detail.bucket === 'finance') refreshAllFromSync();
+  });
+  window.addEventListener('storage', (e) => {
+    if (!e || !e.key) return;
+    if (e.key.indexOf('nw:') === 0 || e.key === 'subs' || e.key === 'wishlist' ||
+        e.key === 'incoming_orders' || e.key === 'nw_currency') {
+      refreshAllFromSync();
+    }
+  });
+
 })();
 </script>
 

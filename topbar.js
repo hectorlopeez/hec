@@ -459,23 +459,6 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       caffeineMgPerDay: 200, substances: [], logs: {}
     };
   }
-  async function pushWaterMergedToSupabase(localWater) {
-    if (window.location.pathname.endsWith('/health.html') ||
-        window.location.pathname.endsWith('health.html')) return;
-    if (!window.supabase || !TOPBAR_SUPABASE_URL || !TOPBAR_SUPABASE_KEY) return;
-    if (TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return;
-    try {
-      const supa = window.supabase.createClient(TOPBAR_SUPABASE_URL, TOPBAR_SUPABASE_KEY);
-      const { data } = await supa
-        .from('app_state').select('data').eq('key', 'health').maybeSingle();
-      const current = (data && data.data) || {};
-      const merged = Object.assign({}, current, { po_water_v1: localWater });
-      await supa.from('app_state').upsert(
-        { key: 'health', data: merged, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      );
-    } catch (e) {}
-  }
   function addWater() {
     let state = null;
     try { state = JSON.parse(localStorage.getItem('po_water_v1')); } catch (e) {}
@@ -487,7 +470,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     render();
     const btn = document.getElementById('topbarWaterAdd');
     if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 220); }
-    pushWaterMergedToSupabase(state);
+    // Global sync will pick this up via Storage.setItem patch (or 30s fallback).
   }
 
   function blockGesture(e) { e.preventDefault(); }
@@ -539,25 +522,8 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     if (arr.length > 200) arr.splice(0, arr.length - 200);
     try { localStorage.setItem(ACT_KEY, JSON.stringify(arr)); } catch (e) {}
   }
-  async function pushFinanceMergedToSupabase() {
-    if (!window.supabase || !TOPBAR_SUPABASE_URL || !TOPBAR_SUPABASE_KEY) return;
-    if (TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return;
-    try {
-      const supa = window.supabase.createClient(TOPBAR_SUPABASE_URL, TOPBAR_SUPABASE_KEY);
-      const { data } = await supa
-        .from('app_state').select('data').eq('key', 'finance').maybeSingle();
-      const current = (data && data.data) || {};
-      const merged = Object.assign({}, current);
-      const bank = localStorage.getItem('nw:bank');
-      if (bank != null) { try { merged['nw:bank'] = JSON.parse(bank); } catch (e) {} }
-      const act = localStorage.getItem('nw:activity');
-      if (act != null) { try { merged['nw:activity'] = JSON.parse(act); } catch (e) {} }
-      await supa.from('app_state').upsert(
-        { key: 'finance', data: merged, updated_at: new Date().toISOString() },
-        { onConflict: 'key' }
-      );
-    } catch (e) {}
-  }
+  // Income writes go through localStorage; the global sync (see below) picks
+  // them up via the Storage.setItem patch and debounces a push to Supabase.
 
   function populateAccountSelect(selectEl, preferredName) {
     const accounts = getBankAccounts();
@@ -620,7 +586,6 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     acct.amount = (Number(acct.amount) || 0) + amount;
     bankSetAccounts(accounts);
     logFinanceActivity('bank', acct.name + (note ? ' · ' + note : ''), amount, 'income');
-    pushFinanceMergedToSupabase();
     try { window.dispatchEvent(new StorageEvent('storage', { key: 'nw:bank' })); } catch (e) {}
     return { ok: true, account: acct.name, amount };
   }
@@ -690,6 +655,187 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     } catch (e) {}
   }
 
+  // =============================================================
+  // Global Supabase sync — buckets for "health" and "finance"
+  //
+  // Pulls on boot + on focus, subscribes to realtime changes, and
+  // pushes (debounced) whenever a relevant localStorage key changes.
+  // This runs on every page that loads topbar.js — including finance.html
+  // and the embedded water tracker — so all devices stay in sync.
+  // =============================================================
+  const SYNC_BUCKETS = {
+    health:  { keys: ['po_water_v1'],                                        prefixes: ['stack:'] },
+    finance: { keys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency'], prefixes: ['nw:']    }
+  };
+  function syncOwns(bucket, key) {
+    const def = SYNC_BUCKETS[bucket]; if (!def || !key) return false;
+    if (def.keys.indexOf(key) >= 0) return true;
+    return def.prefixes.some(p => key.indexOf(p) === 0);
+  }
+  function detectBucket(key) {
+    for (const b in SYNC_BUCKETS) if (syncOwns(b, key)) return b;
+    return null;
+  }
+  function collectBucket(bucket) {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && syncOwns(bucket, k)) {
+        try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+      }
+    }
+    return out;
+  }
+
+  let _syncReady = false;
+  let _syncSuppress = true;
+  const _syncLastJson = {};
+  const _origSet    = localStorage.setItem.bind(localStorage);
+  const _origRemove = localStorage.removeItem.bind(localStorage);
+  let _supaClient = null;
+  function getSupa() {
+    if (_supaClient) return _supaClient;
+    if (!window.supabase) return null;
+    if (!TOPBAR_SUPABASE_URL || TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return null;
+    try { _supaClient = window.supabase.createClient(TOPBAR_SUPABASE_URL, TOPBAR_SUPABASE_KEY); }
+    catch (e) { return null; }
+    return _supaClient;
+  }
+
+  function applyBucket(bucket, remote) {
+    if (!remote || typeof remote !== 'object') return [];
+    const changed = [];
+    const ourKeys = new Set();
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && syncOwns(bucket, k)) ourKeys.add(k);
+    }
+    const wasSuppressed = _syncSuppress;
+    _syncSuppress = true;
+    try {
+      for (const k of Object.keys(remote)) {
+        const incomingStr = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incomingStr) {
+          try { _origSet(k, incomingStr); changed.push(k); } catch (e) {}
+        }
+        ourKeys.delete(k);
+      }
+      // remove any local keys that the remote no longer has
+      for (const k of ourKeys) {
+        try { _origRemove(k); changed.push(k); } catch (e) {}
+      }
+    } finally { _syncSuppress = wasSuppressed; }
+    if (changed.length) {
+      try { window.dispatchEvent(new CustomEvent('storage-pulled', { detail: { bucket, keys: changed }})); } catch (e) {}
+      for (const k of changed) {
+        try { window.dispatchEvent(new StorageEvent('storage', { key: k })); } catch (e) {}
+      }
+      // Also refresh the topbar water pill if water changed
+      if (changed.indexOf('po_water_v1') >= 0) try { render(); } catch (e) {}
+    }
+    return changed;
+  }
+
+  async function pullBucket(bucket) {
+    const sb = getSupa(); if (!sb) return false;
+    try {
+      const { data } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
+      if (data && data.data) {
+        applyBucket(bucket, data.data);
+        _syncLastJson[bucket] = JSON.stringify(collectBucket(bucket));
+        return true;
+      } else {
+        _syncLastJson[bucket] = JSON.stringify(collectBucket(bucket));
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  const _pushTimers = {};
+  function schedulePush(bucket) {
+    if (_syncSuppress) return;
+    clearTimeout(_pushTimers[bucket]);
+    _pushTimers[bucket] = setTimeout(() => pushBucket(bucket), 600);
+  }
+  async function pushBucket(bucket) {
+    const sb = getSupa(); if (!sb) return;
+    const state = collectBucket(bucket);
+    const j = JSON.stringify(state);
+    if (j === _syncLastJson[bucket]) return;
+    try {
+      await sb.from('app_state').upsert(
+        { key: bucket, data: state, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+      _syncLastJson[bucket] = j;
+    } catch (e) {}
+  }
+
+  function subscribeBucket(bucket) {
+    const sb = getSupa(); if (!sb) return;
+    try {
+      sb.channel('topbar_sync_' + bucket)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + bucket },
+          (payload) => {
+            const next = payload.new && payload.new.data;
+            if (!next) return;
+            const j = JSON.stringify(next);
+            if (j === _syncLastJson[bucket]) return;
+            applyBucket(bucket, next);
+            _syncLastJson[bucket] = j;
+          })
+        .subscribe();
+    } catch (e) {}
+  }
+
+  function patchStorage() {
+    try {
+      const proto = Object.getPrototypeOf(localStorage) || Storage.prototype;
+      const origSet    = proto.setItem;
+      const origRemove = proto.removeItem;
+      proto.setItem = function (k, v) {
+        origSet.call(this, k, v);
+        if (_syncSuppress) return;
+        const bucket = detectBucket(k);
+        if (bucket) schedulePush(bucket);
+      };
+      proto.removeItem = function (k) {
+        origRemove.call(this, k);
+        if (_syncSuppress) return;
+        const bucket = detectBucket(k);
+        if (bucket) schedulePush(bucket);
+      };
+      return true;
+    } catch (e) { return false; }
+  }
+
+  async function bootGlobalSync() {
+    if (!getSupa()) { _syncSuppress = false; return; }
+    patchStorage();
+    // Pull both buckets (with a 2.5s ceiling so we don't block forever)
+    await Promise.race([
+      Promise.all([pullBucket('health'), pullBucket('finance')]),
+      new Promise(r => setTimeout(r, 2500))
+    ]);
+    _syncSuppress = false;
+    _syncReady = true;
+    subscribeBucket('health');
+    subscribeBucket('finance');
+    // Fallback periodic check in case Storage patch didn't take (e.g. Firefox)
+    setInterval(() => {
+      for (const bucket of Object.keys(SYNC_BUCKETS)) {
+        const cur = JSON.stringify(collectBucket(bucket));
+        if (cur !== _syncLastJson[bucket]) schedulePush(bucket);
+      }
+    }, 30 * 1000);
+    // Re-pull on focus / visibility so other devices' changes show up fast
+    window.addEventListener('focus', () => { pullBucket('health'); pullBucket('finance'); });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { pullBucket('health'); pullBucket('finance'); }
+    });
+  }
+
   function boot() {
     injectStyleAndHTML();
     const btn = document.getElementById('topbarWaterAdd');
@@ -703,6 +849,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     window.addEventListener('focus', render);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
     setInterval(render, 30 * 1000);
+    bootGlobalSync();
   }
 
   if (document.readyState === 'loading') {

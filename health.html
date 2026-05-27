@@ -1031,6 +1031,17 @@ main {
 
   render();
   startTicker();
+
+  // Re-render when the global sync (topbar.js) pulls fresh data from Supabase.
+  window.addEventListener('storage-pulled', (e) => {
+    if (!e || !e.detail) { render(); return; }
+    const keys = e.detail.keys || [];
+    if (keys.some(k => k.indexOf('stack:') === 0 || k === 'po_water_v1')) render();
+  });
+  window.addEventListener('storage', (e) => {
+    if (!e || !e.key) return;
+    if (e.key.indexOf('stack:') === 0 || e.key === 'po_water_v1') render();
+  });
 })();
 </script>
 
