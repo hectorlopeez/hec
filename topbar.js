@@ -20,11 +20,23 @@
   position: sticky; top: 0; z-index: 40;
   display: flex; justify-content: flex-end; align-items: center;
   gap: 8px;
-  padding: max(10px, env(safe-area-inset-top)) 14px 8px;
-  background: #0a0a0b;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+  background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  pointer-events: none;
 }
+.topbar::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(5,5,6,0.85) 0%, rgba(5,5,6,0.55) 60%, rgba(5,5,6,0) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 60%, transparent 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+.topbar > * { pointer-events: auto; }
 .topbar-water-wrap { display: flex; align-items: stretch; }
 .topbar-water-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -35,6 +47,8 @@
   border-radius: 12px 0 0 12px;
   text-decoration: none; color: #FAFAFA;
   -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .topbar-water-pill .topbar-pill-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -76,26 +90,52 @@
   border-radius: 12px; text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .topbar-finance-btn:hover { background: rgba(255, 255, 255, 0.08); }
 .topbar-finance-icon {
   font-size: 20px; line-height: 1;
   filter: grayscale(100%) brightness(1.4); opacity: 0.85;
 }
+.topbar-income-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 42px;
+  border: 1px solid rgba(110, 231, 183, 0.18);
+  background: rgba(110, 231, 183, 0.08);
+  border-radius: 12px;
+  color: #6EE7B7;
+  font-family: inherit;
+  font-size: 18px; font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.10s;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.topbar-income-btn:hover { background: rgba(110, 231, 183, 0.16); }
+.topbar-income-btn:active { transform: scale(0.94); }
+.topbar-income-btn.flash {
+  background: rgba(110, 231, 183, 0.45);
+  color: #FFFFFF;
+}
 .bottombar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
   display: flex; justify-content: space-around; align-items: stretch;
-  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
-  background: #0a0a0b;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  background: rgba(5, 5, 6, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
 }
 .bottombar-tab {
   flex: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px; padding: 6px 0 4px; text-decoration: none;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.40);
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase;
   -webkit-tap-highlight-color: transparent; transition: color 0.15s;
 }
 .bottombar-tab-icon {
@@ -117,10 +157,124 @@ body.has-bottombar {
   .topbar-pill-count { font-size: 12px; }
   .topbar-water-add { width: 40px; font-size: 18px; }
   .topbar-finance-btn { width: 40px; height: 38px; }
+  .topbar-income-btn { width: 40px; height: 38px; font-size: 16px; }
   .topbar-finance-icon { font-size: 18px; }
   .bottombar-tab-icon { font-size: 22px; }
-  .bottombar-tab { font-size: 10px; }
+  .bottombar-tab { font-size: 9.5px; }
 }
+
+/* ===== Income quick-add modal ===== */
+.inc-modal-bg {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 18px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.inc-modal-bg.show { display: flex; opacity: 1; }
+.inc-modal {
+  width: 100%; max-width: 380px;
+  background: rgba(20, 20, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  color: #FAFAFA;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  transform: translateY(8px) scale(0.98);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.inc-modal-bg.show .inc-modal { transform: translateY(0) scale(1); }
+.inc-modal-title {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.inc-modal-sub {
+  font-size: 12px; color: rgba(255,255,255,0.5);
+  margin: 0 0 16px;
+}
+.inc-modal-row {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 12px;
+}
+.inc-modal-label {
+  font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.10em;
+  color: rgba(255,255,255,0.45);
+}
+.inc-modal-input, .inc-modal-select {
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.32);
+  color: #FAFAFA;
+  font-family: inherit;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none; appearance: none;
+}
+.inc-modal-input:focus, .inc-modal-select:focus {
+  border-color: rgba(110,231,183,0.45);
+  background: rgba(0,0,0,0.45);
+}
+.inc-modal-input.amount {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
+  text-align: center;
+}
+.inc-modal-actions {
+  display: flex; gap: 8px; margin-top: 18px;
+}
+.inc-modal-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.10s, background 0.15s;
+  border: 0;
+}
+.inc-modal-btn.cancel {
+  background: rgba(255,255,255,0.06);
+  color: #FAFAFA;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.inc-modal-btn.save {
+  background: linear-gradient(180deg, #6EE7B7 0%, #34D399 100%);
+  color: #042F1E;
+  box-shadow: 0 8px 22px rgba(52, 211, 153, 0.30);
+}
+.inc-modal-btn.save:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.inc-modal-btn.save:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
+.inc-modal-status {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 10px;
+  min-height: 14px;
+}
+.inc-modal-status.error { color: #FF8A8A; }
+.inc-modal-status.ok { color: #6EE7B7; }
+.inc-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255,255,255,0.06);
+  color: #FAFAFA;
+  font-size: 16px; line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.inc-modal-close:hover { background: rgba(255,255,255,0.12); }
+.inc-modal { position: relative; }
 html, body { -webkit-text-size-adjust: 100%; }
 @media (max-width: 768px) {
   html { touch-action: pan-y; }
@@ -157,6 +311,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     </a>
     <button class="topbar-water-add" id="topbarWaterAdd" aria-label="Log one drink" type="button">+</button>
   </div>
+  <button class="topbar-income-btn" id="topbarIncome" aria-label="Add income" type="button" title="Add income">+$</button>
   <a href="finance.html" class="topbar-finance-btn" id="topbarFinance" aria-label="Finance">
     <span class="topbar-finance-icon">📊</span>
   </a>
@@ -167,6 +322,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   <a href="index.html" class="bottombar-tab" data-page="main">
     <span class="bottombar-tab-icon">🏠</span><span>Main</span>
   </a>
+  <a href="studies.html" class="bottombar-tab" data-page="studies">
+    <span class="bottombar-tab-icon">📚</span><span>Studies</span>
+  </a>
   <a href="health.html" class="bottombar-tab" data-page="health">
     <span class="bottombar-tab-icon">💊</span><span>Health</span>
   </a>
@@ -174,6 +332,32 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     <span class="bottombar-tab-icon">💪</span><span>Fitness</span>
   </a>
 </nav>`;
+
+  const incomeModalHtml = `
+<div class="inc-modal-bg" id="incModalBg" role="dialog" aria-modal="true" aria-labelledby="incModalTitle">
+  <div class="inc-modal">
+    <button class="inc-modal-close" id="incModalClose" aria-label="Close">×</button>
+    <h2 class="inc-modal-title" id="incModalTitle">💸 Add income</h2>
+    <p class="inc-modal-sub">Bumps the chosen account and logs it in your activity.</p>
+    <div class="inc-modal-row">
+      <label class="inc-modal-label" for="incAmount">Amount</label>
+      <input class="inc-modal-input amount" id="incAmount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+    </div>
+    <div class="inc-modal-row">
+      <label class="inc-modal-label" for="incAccount">Into account</label>
+      <select class="inc-modal-select" id="incAccount"></select>
+    </div>
+    <div class="inc-modal-row">
+      <label class="inc-modal-label" for="incNote">Note (optional)</label>
+      <input class="inc-modal-input" id="incNote" type="text" placeholder="e.g. Salary, freelance, …" />
+    </div>
+    <div class="inc-modal-actions">
+      <button class="inc-modal-btn cancel" id="incModalCancel" type="button">Cancel</button>
+      <button class="inc-modal-btn save" id="incModalSave" type="button">Add</button>
+    </div>
+    <div class="inc-modal-status" id="incModalStatus"></div>
+  </div>
+</div>`;
 
   function isFinancePage() {
     const p = (window.location.pathname || '').toLowerCase();
@@ -187,6 +371,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const p = (window.location.pathname || '').toLowerCase();
     if (p.endsWith('health.html')) return 'health';
     if (p.endsWith('gym.html')) return 'fitness';
+    if (p.endsWith('studies.html')) return 'studies';
     return 'main';
   }
 
@@ -203,6 +388,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const bottomWrap = document.createElement('div');
     bottomWrap.innerHTML = bottombarHtml.trim();
     document.body.appendChild(bottomWrap.firstChild);
+    const incWrap = document.createElement('div');
+    incWrap.innerHTML = incomeModalHtml.trim();
+    document.body.appendChild(incWrap.firstChild);
     const active = currentPageKey();
     document.querySelectorAll('.bottombar-tab').forEach((t) => {
       t.classList.toggle('active', t.getAttribute('data-page') === active);
@@ -331,10 +519,183 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     sync();
   }
 
+  // -------- Income quick-add --------
+  function getBankAccounts() {
+    try {
+      const raw = localStorage.getItem('nw:bank');
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function bankSetAccounts(arr) {
+    try { localStorage.setItem('nw:bank', JSON.stringify(arr)); } catch (e) {}
+  }
+  function logFinanceActivity(catKey, name, deltaCHF, kind) {
+    const ACT_KEY = 'nw:activity';
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(ACT_KEY)) || []; } catch (e) {}
+    if (!Array.isArray(arr)) arr = [];
+    arr.push({ ts: Date.now(), cat: catKey, name: String(name || ''), delta: Number(deltaCHF) || 0, kind: kind || 'add' });
+    if (arr.length > 200) arr.splice(0, arr.length - 200);
+    try { localStorage.setItem(ACT_KEY, JSON.stringify(arr)); } catch (e) {}
+  }
+  async function pushFinanceMergedToSupabase() {
+    if (!window.supabase || !TOPBAR_SUPABASE_URL || !TOPBAR_SUPABASE_KEY) return;
+    if (TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return;
+    try {
+      const supa = window.supabase.createClient(TOPBAR_SUPABASE_URL, TOPBAR_SUPABASE_KEY);
+      const { data } = await supa
+        .from('app_state').select('data').eq('key', 'finance').maybeSingle();
+      const current = (data && data.data) || {};
+      const merged = Object.assign({}, current);
+      const bank = localStorage.getItem('nw:bank');
+      if (bank != null) { try { merged['nw:bank'] = JSON.parse(bank); } catch (e) {} }
+      const act = localStorage.getItem('nw:activity');
+      if (act != null) { try { merged['nw:activity'] = JSON.parse(act); } catch (e) {} }
+      await supa.from('app_state').upsert(
+        { key: 'finance', data: merged, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+    } catch (e) {}
+  }
+
+  function populateAccountSelect(selectEl, preferredName) {
+    const accounts = getBankAccounts();
+    selectEl.innerHTML = '';
+    if (accounts.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '__new__'; opt.textContent = 'Create "Bank" account…';
+      selectEl.appendChild(opt);
+      return;
+    }
+    accounts.forEach((a, i) => {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = (a.name || 'Account') + '  ·  ' + (Number(a.amount) || 0);
+      selectEl.appendChild(opt);
+    });
+    if (preferredName) {
+      const idx = accounts.findIndex(a => (a.name || '').toLowerCase() === preferredName.toLowerCase());
+      if (idx >= 0) selectEl.value = String(idx);
+    }
+  }
+
+  function openIncomeModal(preset) {
+    const bg = document.getElementById('incModalBg');
+    if (!bg) return;
+    const amountEl = document.getElementById('incAmount');
+    const accountEl = document.getElementById('incAccount');
+    const noteEl = document.getElementById('incNote');
+    const statusEl = document.getElementById('incModalStatus');
+    populateAccountSelect(accountEl, preset && preset.account);
+    amountEl.value = preset && preset.amount ? String(preset.amount) : '';
+    noteEl.value = preset && preset.note ? String(preset.note) : '';
+    statusEl.textContent = ''; statusEl.classList.remove('error','ok');
+    bg.classList.add('show');
+    setTimeout(() => amountEl.focus(), 60);
+  }
+  function closeIncomeModal() {
+    const bg = document.getElementById('incModalBg');
+    if (!bg) return;
+    bg.classList.remove('show');
+  }
+
+  function applyIncome(amount, accountName, note) {
+    amount = Number(amount) || 0;
+    if (amount <= 0) return { ok: false, error: 'Enter a positive amount.' };
+    let accounts = getBankAccounts();
+    let acct;
+    if (accountName) {
+      acct = accounts.find(a => (a.name || '').toLowerCase() === accountName.toLowerCase());
+      if (!acct) {
+        acct = { name: accountName, amount: 0 };
+        accounts.push(acct);
+      }
+    } else if (accounts.length === 0) {
+      acct = { name: 'Bank', amount: 0 };
+      accounts.push(acct);
+    } else {
+      acct = accounts[0];
+    }
+    acct.amount = (Number(acct.amount) || 0) + amount;
+    bankSetAccounts(accounts);
+    logFinanceActivity('bank', acct.name + (note ? ' · ' + note : ''), amount, 'income');
+    pushFinanceMergedToSupabase();
+    try { window.dispatchEvent(new StorageEvent('storage', { key: 'nw:bank' })); } catch (e) {}
+    return { ok: true, account: acct.name, amount };
+  }
+
+  function wireIncomeModal() {
+    const openBtn = document.getElementById('topbarIncome');
+    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); openIncomeModal(); });
+    const closeBtn = document.getElementById('incModalClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeIncomeModal);
+    const cancelBtn = document.getElementById('incModalCancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeIncomeModal);
+    const bg = document.getElementById('incModalBg');
+    if (bg) bg.addEventListener('click', (e) => { if (e.target === bg) closeIncomeModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && bg && bg.classList.contains('show')) closeIncomeModal();
+    });
+    const saveBtn = document.getElementById('incModalSave');
+    if (saveBtn) saveBtn.addEventListener('click', () => {
+      const amount = parseFloat(document.getElementById('incAmount').value);
+      const selectEl = document.getElementById('incAccount');
+      const note = document.getElementById('incNote').value.trim();
+      const statusEl = document.getElementById('incModalStatus');
+      statusEl.classList.remove('error','ok');
+      let accountName = null;
+      const accounts = getBankAccounts();
+      const sel = selectEl.value;
+      if (sel === '__new__' || accounts.length === 0) accountName = 'Bank';
+      else { const idx = parseInt(sel, 10); if (!isNaN(idx) && accounts[idx]) accountName = accounts[idx].name; }
+      const r = applyIncome(amount, accountName, note);
+      if (!r.ok) {
+        statusEl.textContent = r.error;
+        statusEl.classList.add('error');
+        return;
+      }
+      statusEl.textContent = 'Added ' + r.amount + ' to ' + r.account + ' ✓';
+      statusEl.classList.add('ok');
+      const flashBtn = document.getElementById('topbarIncome');
+      if (flashBtn) { flashBtn.classList.add('flash'); setTimeout(() => flashBtn.classList.remove('flash'), 360); }
+      setTimeout(closeIncomeModal, 700);
+    });
+    document.getElementById('incAmount').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+    });
+  }
+
+  function handleIncomeUrlParam() {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const raw = sp.get('addIncome') || sp.get('income');
+      if (!raw) return;
+      const amount = parseFloat(raw);
+      if (isNaN(amount) || amount <= 0) return;
+      const note = sp.get('note') || '';
+      const account = sp.get('account') || null;
+      const auto = sp.get('auto') === '1' || sp.get('silent') === '1';
+      if (auto) {
+        const r = applyIncome(amount, account, note);
+        // strip the params from URL so reloads don't double-add
+        const clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, clean);
+        return r;
+      }
+      // open prefilled modal
+      openIncomeModal({ amount, note, account });
+      const clean = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, clean);
+    } catch (e) {}
+  }
+
   function boot() {
     injectStyleAndHTML();
     const btn = document.getElementById('topbarWaterAdd');
     if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
+    wireIncomeModal();
+    handleIncomeUrlParam();
     render();
     lockGestures();
     startModalLock();

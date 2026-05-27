@@ -64,19 +64,213 @@ body::after {
   margin: 0 auto;
 }
 
-/* ===== Component 1: page title ===== */
-.dash-title {
-  margin: 0 0 14px;
-  font-size: 28px;
-  font-weight: 700;
+/* ===== Hero: Now / Next 2h ===== */
+@property --aurora-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.now-hero {
+  position: relative;
+  border-radius: 22px;
+  padding: 22px 22px 20px;
+  margin: 4px 0 18px;
+  background: rgba(8, 8, 10, 0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+}
+.now-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  z-index: -2;
+  background: conic-gradient(
+    from var(--aurora-angle, 0deg) at 50% 50%,
+    #FF6B6B 0deg, #F2C063 60deg, #6BE3A4 130deg,
+    #7DD3FC 200deg, #C084FC 270deg, #FF6B6B 360deg
+  );
+  filter: blur(60px) saturate(1.3);
+  opacity: 0.55;
+  animation: aurora-spin 18s linear infinite;
+}
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .now-hero::before {
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,107,107,0.4), transparent 40%),
+      radial-gradient(circle at 80% 20%, rgba(107,227,164,0.35), transparent 45%),
+      radial-gradient(circle at 60% 80%, rgba(125,211,252,0.35), transparent 45%);
+  }
+}
+.now-hero::after {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(140% 100% at 50% 0%, transparent 30%, rgba(5,5,6,0.86) 70%),
+    linear-gradient(180deg, rgba(5,5,6,0.4) 0%, rgba(5,5,6,0.85) 100%);
+}
+@keyframes aurora-spin {
+  to { --aurora-angle: 360deg; }
+}
+/* Fallback animation if @property unsupported */
+@media (prefers-reduced-motion: no-preference) {
+  @supports not (background: paint(something)) {
+    .now-hero::before { animation: aurora-drift 18s linear infinite alternate; }
+  }
+}
+@keyframes aurora-drift {
+  0%   { transform: translate3d(0,0,0); }
+  100% { transform: translate3d(-6%, 4%, 0) rotate(20deg); }
+}
+
+.now-hero-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 8px;
+}
+.now-hero-led {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #6BE3A4;
+  box-shadow: 0 0 10px rgba(107,227,164,0.85);
+  animation: now-led-pulse 1.6s ease-in-out infinite;
+}
+.now-hero-led.is-idle {
+  background: rgba(255,255,255,0.4);
+  box-shadow: none;
+  animation: none;
+}
+@keyframes now-led-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.8); }
+}
+.now-hero-time {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.5);
+}
+.now-hero-title {
+  margin: 0 0 6px;
+  font-size: 26px; font-weight: 700;
   letter-spacing: -0.025em;
   background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  line-height: 1.15;
 }
-@media (max-width: 480px) { .dash-title { font-size: 22px; } }
+.now-hero-meta {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 14px;
+}
+.now-hero-meta .dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+}
+.now-hero-progress {
+  position: relative;
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.now-hero-progress-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, #6BE3A4, #7DD3FC);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(107,227,164,0.55);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.now-hero-next-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.20em; text-transform: uppercase;
+  color: rgba(255,255,255,0.40);
+  margin-bottom: 8px;
+}
+.now-hero-next-list {
+  display: flex; flex-direction: column;
+  gap: 6px;
+}
+.now-hero-next-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+.now-hero-next-item:hover { background: rgba(255,255,255,0.07); }
+.now-hero-next-time {
+  font-family: var(--font-mono);
+  font-size: 11.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.7);
+  min-width: 88px;
+}
+.now-hero-next-title {
+  flex: 1;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.now-hero-next-in {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+}
+
+.now-hero-empty {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  padding: 6px 0 4px;
+}
+.now-hero-empty a {
+  color: #7DD3FC;
+  text-decoration: none;
+  font-weight: 600;
+}
+.now-hero-empty a:hover { text-decoration: underline; }
+
+.now-hero-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.85);
+  font-size: 11.5px; font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, border-color 0.15s;
+}
+.now-hero-cta:hover {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.20);
+}
+
+@media (max-width: 480px) {
+  .now-hero { padding: 18px 18px 16px; border-radius: 18px; }
+  .now-hero-title { font-size: 22px; }
+  .now-hero-next-time { min-width: 76px; font-size: 11px; }
+}
 
 /* ===== Component 2: Goal Ticker ===== */
 .ticker-row {
@@ -597,7 +791,18 @@ body::after {
 <body>
 <div class="page">
 
-  <h1 class="dash-title">Hector Dashboard</h1>
+  <section class="now-hero" id="nowHero" aria-live="polite">
+    <div class="now-hero-eyebrow">
+      <span class="now-hero-led" id="nowHeroLed"></span>
+      <span id="nowHeroEyebrowText">Now</span>
+      <span class="now-hero-time" id="nowHeroTime">—</span>
+    </div>
+    <div id="nowHeroBody">
+      <div class="now-hero-empty">
+        Loading…
+      </div>
+    </div>
+  </section>
 
   <div class="ticker-row">
     <div class="goal-ticker" id="goalTicker" aria-live="polite" aria-atomic="true">
@@ -1415,6 +1620,142 @@ body::after {
     } catch (e) {}
   }
 
+  // ---------- Now / Next 2h hero ----------
+  function scheduleKey() { return 'schedule:' + getActiveDateString(); }
+  function getSchedule() {
+    const arr = storeGet(scheduleKey());
+    return Array.isArray(arr) ? arr : [];
+  }
+  // Parse "HH:MM" → minutes since midnight. Block "end" may be > 1440 if it
+  // wraps past midnight; we keep "start < end" by adding 1440 to wrapped ends.
+  function parseHM(s) {
+    if (!s || typeof s !== 'string') return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+    if (!m) return null;
+    const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+    if (isNaN(h) || isNaN(mi)) return null;
+    return h * 60 + mi;
+  }
+  function formatHM(mins) {
+    if (mins == null || isNaN(mins)) return '—';
+    mins = ((mins % (24*60)) + 24*60) % (24*60);
+    let h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    return h + ':' + pad2(m) + ' ' + ampm;
+  }
+  function blockBounds(b) {
+    const s = parseHM(b.start);
+    let e = parseHM(b.end);
+    if (s == null || e == null) return null;
+    if (e <= s) e += 24 * 60; // wrap past midnight
+    return { s, e };
+  }
+  function nowMinutes() {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  }
+
+  function renderNowHero() {
+    const eyebrowText = document.getElementById('nowHeroEyebrowText');
+    const led = document.getElementById('nowHeroLed');
+    const timeEl = document.getElementById('nowHeroTime');
+    const body = document.getElementById('nowHeroBody');
+    const now = new Date();
+    timeEl.textContent = formatClock(now);
+
+    const blocks = getSchedule().map(b => {
+      const bb = blockBounds(b);
+      return bb ? Object.assign({}, b, bb) : null;
+    }).filter(Boolean).sort((a, b) => a.s - b.s);
+
+    if (blocks.length === 0) {
+      eyebrowText.textContent = 'Today';
+      led.classList.add('is-idle');
+      body.innerHTML =
+        '<div class="now-hero-empty">No schedule yet — head to <a href="studies.html">Studies</a> to plan your day.</div>' +
+        '<a href="studies.html" class="now-hero-cta">📚 Plan today →</a>';
+      return;
+    }
+
+    const nm = nowMinutes();
+    const nm2 = nm + 24 * 60; // also try the wrapped frame for late-night reads
+    let current = null;
+    let currentT = nm;
+    for (const b of blocks) {
+      if (nm >= b.s && nm < b.e) { current = b; currentT = nm; break; }
+      if (nm2 >= b.s && nm2 < b.e) { current = b; currentT = nm2; break; }
+    }
+
+    // Build "next" list: blocks starting strictly after now, within the next 120 minutes
+    const horizon = nm + 120;
+    const nextItems = blocks.filter(b => b.s > nm && b.s <= horizon).slice(0, 3);
+
+    let html = '';
+    if (current) {
+      led.classList.remove('is-idle');
+      eyebrowText.textContent = 'Now · ' + (current.kind ? current.kind.toUpperCase() : 'BLOCK');
+      const pct = Math.max(0, Math.min(100, (currentT - current.s) / (current.e - current.s) * 100));
+      const remainMin = Math.max(0, Math.round(current.e - currentT));
+      html +=
+        '<h2 class="now-hero-title">' + escapeHtml(current.title || 'Untitled') + '</h2>' +
+        '<div class="now-hero-meta">' +
+          '<span>' + escapeHtml(formatHM(current.s)) + ' – ' + escapeHtml(formatHM(current.e)) + '</span>' +
+          '<span class="dot"></span>' +
+          '<span>' + remainMin + ' min left</span>' +
+        '</div>' +
+        '<div class="now-hero-progress"><div class="now-hero-progress-fill" style="width:' + pct.toFixed(1) + '%"></div></div>';
+    } else {
+      led.classList.add('is-idle');
+      eyebrowText.textContent = 'Free';
+      // Find the next block start, if any later today
+      const next = blocks.find(b => b.s > nm);
+      if (next) {
+        const gap = Math.max(0, Math.round(next.s - nm));
+        html +=
+          '<h2 class="now-hero-title">Nothing scheduled right now.</h2>' +
+          '<div class="now-hero-meta"><span>Next in ' + gap + ' min · ' + escapeHtml(formatHM(next.s)) + '</span></div>';
+      } else {
+        html +=
+          '<h2 class="now-hero-title">Day is wrapped.</h2>' +
+          '<div class="now-hero-meta"><span>Nothing else scheduled.</span></div>';
+      }
+    }
+
+    if (nextItems.length > 0) {
+      html += '<div class="now-hero-next-label">Next · 2h</div>';
+      html += '<div class="now-hero-next-list">';
+      for (const b of nextItems) {
+        const inMin = Math.max(0, Math.round(b.s - nm));
+        html +=
+          '<div class="now-hero-next-item">' +
+            '<span class="now-hero-next-time">' + escapeHtml(formatHM(b.s)) + '</span>' +
+            '<span class="now-hero-next-title">' + escapeHtml(b.title || 'Untitled') + '</span>' +
+            '<span class="now-hero-next-in">in ' + inMin + ' min</span>' +
+          '</div>';
+      }
+      html += '</div>';
+    }
+
+    body.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Re-render the hero when the schedule changes from anywhere
+  window.addEventListener('schedule-changed', renderNowHero);
+  window.addEventListener('storage', (e) => {
+    if (!e.key || e.key.indexOf('schedule:') === 0) renderNowHero();
+  });
+
   // ---------- Boot ----------
   (async function boot() {
     // Wait for the first remote pull (or 2s timeout) before running rollover —
@@ -1433,6 +1774,8 @@ body::after {
     renderStreak();
     updateDayRing();
     setInterval(updateDayRing, 60 * 1000);
+    renderNowHero();
+    setInterval(renderNowHero, 60 * 1000);
     startTicker();
 
     // Re-render when storage changes from another tab (or our bridged parent).

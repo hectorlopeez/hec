@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Studies · Hector</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --kind-study:    #6BE3A4;
+  --kind-class:    #7DD3FC;
+  --kind-work:     #F2C063;
+  --kind-exercise: #FF6B6B;
+  --kind-meal:     #FFB07A;
+  --kind-break:    #B8B6B0;
+  --kind-sleep:    #C084FC;
+  --kind-personal: #F472B6;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: #050506;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  padding: max(28px, env(safe-area-inset-top)) 20px 60px;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(125, 211, 252, 0.14), transparent 45%),
+    radial-gradient(circle at 18% 90%, rgba(180, 180, 200, 0.06), transparent 50%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: -2;
+  animation: drift 36s ease-in-out infinite alternate;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 3px 3px;
+  pointer-events: none;
+  z-index: -1;
+}
+@keyframes drift {
+  0%   { transform: translate3d(0,0,0); }
+  100% { transform: translate3d(-22px, 14px, 0); }
+}
+
+.page { max-width: 1100px; margin: 0 auto; }
+
+.studies-head {
+  display: flex; align-items: baseline;
+  flex-wrap: wrap; gap: 12px;
+  margin-bottom: 18px;
+}
+.studies-title {
+  margin: 0;
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -0.025em;
+  background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.studies-date {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.studies-clock {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.studies-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+
+.studies-grid {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .studies-grid { grid-template-columns: 56px 1fr; gap: 10px; }
+}
+
+/* ----- Timeline column ----- */
+.studies-timeline {
+  position: relative;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 14px;
+  min-height: 720px;
+  overflow: hidden;
+}
+.studies-tl-hour {
+  position: absolute; left: 0; right: 0;
+  border-top: 1px dashed rgba(255,255,255,0.06);
+  display: flex; align-items: flex-start;
+  padding: 2px 6px 0;
+  pointer-events: none;
+}
+.studies-tl-hour-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+.studies-tl-block {
+  position: absolute;
+  left: 4px; right: 4px;
+  border-radius: 7px;
+  padding: 4px 8px;
+  overflow: hidden;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 10px; font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  background: rgba(107,227,164,0.16);
+  border: 1px solid rgba(107,227,164,0.32);
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: filter 0.15s, box-shadow 0.2s;
+}
+.studies-tl-block:hover { filter: brightness(1.15); }
+.studies-tl-block.is-active {
+  box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55), 0 6px 20px rgba(0,0,0,0.35);
+}
+.studies-tl-block.is-done { opacity: 0.45; }
+.studies-tl-now {
+  position: absolute; left: 0; right: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, #FF6B6B 20%, #FF6B6B 80%, transparent);
+  box-shadow: 0 0 10px rgba(255,107,107,0.6);
+  z-index: 3;
+  pointer-events: none;
+}
+.studies-tl-now::before {
+  content: '';
+  position: absolute; left: 2px; top: 50%;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #FF6B6B;
+  box-shadow: 0 0 10px rgba(255,107,107,0.8);
+  transform: translateY(-50%);
+}
+
+/* ----- Block list (right column) ----- */
+.studies-list {
+  display: flex; flex-direction: column;
+  gap: 8px;
+}
+.studies-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.2s, opacity 0.2s, border-color 0.2s;
+}
+.studies-row:hover { background: rgba(255,255,255,0.06); }
+.studies-row.is-active {
+  border-color: rgba(255,255,255,0.22);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 12px 28px rgba(0,0,0,0.35);
+}
+.studies-row.is-done { opacity: 0.5; }
+.studies-row.is-done .studies-row-title { text-decoration: line-through; }
+.studies-row-time {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 92px;
+  white-space: nowrap;
+}
+.studies-row-kind {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.studies-row-title {
+  flex: 1;
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+  cursor: text;
+  outline: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.studies-row-title[contenteditable="true"] {
+  outline: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.28);
+}
+.studies-row-check {
+  appearance: none; -webkit-appearance: none;
+  width: 20px; height: 20px; flex-shrink: 0;
+  margin: 0;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.28);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.studies-row-check:checked {
+  background: #6BE3A4;
+  border-color: #6BE3A4;
+  box-shadow: 0 0 10px rgba(107,227,164,0.35);
+}
+.studies-row-check:checked::after {
+  content: '';
+  position: absolute; left: 5px; top: 2px;
+  width: 6px; height: 10px;
+  border: solid #0A0A0B;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+.studies-row-del {
+  border: 0; background: transparent;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  cursor: pointer; padding: 0 4px;
+  opacity: 0.4;
+  transition: opacity 0.2s, color 0.2s;
+}
+.studies-row:hover .studies-row-del { opacity: 1; }
+.studies-row-del:hover { color: var(--danger); }
+
+.studies-empty {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12.5px; font-style: italic;
+  padding: 18px 8px;
+}
+
+.studies-add-toggle {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px dashed rgba(255,255,255,0.16);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.studies-add-toggle:hover {
+  color: var(--text-primary);
+  border-color: rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.03);
+}
+
+.studies-add-form {
+  display: grid;
+  grid-template-columns: 100px 100px 1fr 110px;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+.studies-add-form[hidden] { display: none; }
+.studies-add-form input, .studies-add-form select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 9px;
+  background: rgba(0,0,0,0.32);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.studies-add-form input:focus, .studies-add-form select:focus {
+  border-color: rgba(125,211,252,0.45);
+}
+.studies-add-row {
+  grid-column: 1 / -1;
+  display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+}
+.studies-add-btn {
+  padding: 9px 18px;
+  border: 0; border-radius: 9px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%);
+  color: #0A0A0B;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.35);
+  transition: transform 0.1s, filter 0.15s;
+}
+.studies-add-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.studies-add-cancel {
+  padding: 9px 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  color: var(--text-primary);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .studies-add-form { grid-template-columns: 1fr 1fr; }
+}
+
+/* ----- Chat ----- */
+.studies-chat {
+  position: relative;
+  margin-top: 8px;
+}
+.studies-chat-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.20em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.studies-chat-eyebrow::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+.studies-chat-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 16px;
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+.studies-chat-log {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 4px;
+}
+.studies-chat-msg {
+  max-width: 86%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.studies-chat-msg.user {
+  align-self: flex-end;
+  background: linear-gradient(180deg, rgba(125,211,252,0.18), rgba(125,211,252,0.10));
+  color: #FAFAFA;
+  border: 1px solid rgba(125,211,252,0.20);
+  border-bottom-right-radius: 4px;
+}
+.studies-chat-msg.assistant {
+  align-self: flex-start;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-bottom-left-radius: 4px;
+}
+.studies-chat-msg.system {
+  align-self: center;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px; font-style: italic;
+  padding: 4px 8px;
+}
+.studies-chat-thinking {
+  align-self: flex-start;
+  display: inline-flex; gap: 4px;
+  padding: 12px 16px;
+}
+.studies-chat-thinking span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  animation: chat-bounce 1.2s ease-in-out infinite;
+}
+.studies-chat-thinking span:nth-child(2) { animation-delay: 0.15s; }
+.studies-chat-thinking span:nth-child(3) { animation-delay: 0.30s; }
+@keyframes chat-bounce {
+  0%, 80%, 100% { transform: scale(0.55); opacity: 0.5; }
+  40%           { transform: scale(1);    opacity: 1;   }
+}
+
+.studies-chat-input-row {
+  display: flex; gap: 8px;
+}
+.studies-chat-input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.28);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.studies-chat-input:focus { border-color: rgba(125,211,252,0.45); background: rgba(0,0,0,0.36); }
+.studies-chat-send {
+  padding: 11px 18px;
+  border: 0; border-radius: 12px;
+  background: linear-gradient(180deg, #7DD3FC 0%, #38BDF8 100%);
+  color: #042F4E;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(56,189,248,0.30);
+  transition: filter 0.15s, transform 0.10s;
+}
+.studies-chat-send:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.studies-chat-send:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
+.studies-chat-status {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 6px;
+  min-height: 14px;
+}
+.studies-chat-status.error { color: var(--danger); }
+.studies-chat-status.ok    { color: var(--success); }
+
+@media (max-width: 480px) {
+  .studies-title { font-size: 22px; }
+  .studies-row-time { min-width: 80px; font-size: 10.5px; }
+  .studies-chat-log { max-height: 260px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="studies-head">
+    <h1 class="studies-title">📚 Today's plan</h1>
+    <span class="studies-date" id="studiesDate">—</span>
+    <span class="studies-clock" id="studiesClock">—</span>
+  </div>
+
+  <div class="studies-card">
+    <div class="studies-grid">
+      <div class="studies-timeline" id="studiesTimeline"></div>
+      <div>
+        <div class="studies-list" id="studiesList"></div>
+        <div class="studies-empty" id="studiesEmpty">No blocks yet. Add one or ask Claude below.</div>
+        <button class="studies-add-toggle" id="studiesAddToggle" type="button">+ Add block</button>
+        <form class="studies-add-form" id="studiesAddForm" hidden>
+          <input type="time" id="studiesStart" required>
+          <input type="time" id="studiesEnd" required>
+          <input type="text" id="studiesTitleInput" placeholder="What?" required>
+          <select id="studiesKind">
+            <option value="study">📚 Study</option>
+            <option value="class">🎓 Class</option>
+            <option value="work">💼 Work</option>
+            <option value="exercise">🏃 Exercise</option>
+            <option value="meal">🍽️ Meal</option>
+            <option value="break">☕ Break</option>
+            <option value="sleep">🌙 Sleep</option>
+            <option value="personal">📌 Personal</option>
+          </select>
+          <div class="studies-add-row">
+            <button type="button" class="studies-add-cancel" id="studiesAddCancel">Cancel</button>
+            <button type="submit" class="studies-add-btn" id="studiesAddBtn">Add block</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="studies-chat-eyebrow">
+    <span>🤖 Talk to Claude · organize your day</span>
+  </div>
+  <div class="studies-card studies-chat">
+    <div class="studies-chat-log" id="studiesChatLog"></div>
+    <div class="studies-chat-input-row">
+      <input id="studiesChatInput" class="studies-chat-input" type="text" placeholder="e.g. I have a bio exam at 6pm, prep me for it" autocomplete="off">
+      <button id="studiesChatSend" class="studies-chat-send" type="button">Send</button>
+    </div>
+    <div class="studies-chat-status" id="studiesChatStatus"></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Paste your Anthropic key to enable Claude. Empty = chat tells you so.
+  const ANTHROPIC_API_KEY = '';
+
+  // ---------- storage ----------
+  function storeGet(key) {
+    try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+  }
+  function storeSet(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    if (typeof key === 'string' && key.indexOf('schedule:') === 0) {
+      window.dispatchEvent(new CustomEvent('schedule-changed'));
+    }
+    if (typeof scMaybePush === 'function') scMaybePush(key);
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function dateToKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function getActiveDateString() {
+    const now = new Date();
+    if (now.getHours() < 6) {
+      const d = new Date(now); d.setDate(d.getDate() - 1);
+      return dateToKey(d);
+    }
+    return dateToKey(now);
+  }
+  function formatDate(yyyy_mm_dd) {
+    const parts = yyyy_mm_dd.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    const wk = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+    return wk + ', ' + mo + ' ' + d.getDate();
+  }
+  function scheduleKey() { return 'schedule:' + getActiveDateString(); }
+  function getSchedule() {
+    const a = storeGet(scheduleKey());
+    return Array.isArray(a) ? a : [];
+  }
+  function setSchedule(arr) { storeSet(scheduleKey(), arr); }
+
+  // ---------- time helpers ----------
+  function parseHM(s) {
+    if (!s || typeof s !== 'string') return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+    if (!m) return null;
+    const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+    if (isNaN(h) || isNaN(mi) || h < 0 || h > 23 || mi < 0 || mi > 59) return null;
+    return h * 60 + mi;
+  }
+  function formatHM(mins) {
+    if (mins == null || isNaN(mins)) return '—';
+    mins = ((mins % (24*60)) + 24*60) % (24*60);
+    let h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    return h + ':' + pad2(m) + ' ' + ampm;
+  }
+  function formatClock(d) {
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    return h + ':' + pad2(m) + ' ' + ampm;
+  }
+  function blockBounds(b) {
+    const s = parseHM(b.start);
+    let e = parseHM(b.end);
+    if (s == null || e == null) return null;
+    if (e <= s) e += 24 * 60;
+    return { s, e };
+  }
+  function nowMinutes() {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  const KIND_META = {
+    study:    { icon: '📚', color: 'var(--kind-study)' },
+    class:    { icon: '🎓', color: 'var(--kind-class)' },
+    work:     { icon: '💼', color: 'var(--kind-work)' },
+    exercise: { icon: '🏃', color: 'var(--kind-exercise)' },
+    meal:     { icon: '🍽️', color: 'var(--kind-meal)' },
+    break:    { icon: '☕', color: 'var(--kind-break)' },
+    sleep:    { icon: '🌙', color: 'var(--kind-sleep)' },
+    personal: { icon: '📌', color: 'var(--kind-personal)' }
+  };
+  function kindMeta(k) { return KIND_META[k] || { icon: '📌', color: 'var(--kind-personal)' }; }
+
+  // ---------- timeline (left column) ----------
+  const TIMELINE_START_HOUR = 6;   // 6 AM
+  const TIMELINE_END_HOUR   = 24;  // midnight
+  const TIMELINE_PX_PER_HOUR = 40; // 18 hours × 40 = 720px
+
+  function timeToPx(mins) {
+    const startMin = TIMELINE_START_HOUR * 60;
+    const span = (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * 60;
+    const clamped = Math.max(startMin, Math.min(startMin + span, mins));
+    return ((clamped - startMin) / 60) * TIMELINE_PX_PER_HOUR;
+  }
+
+  function renderTimeline() {
+    const wrap = document.getElementById('studiesTimeline');
+    const totalH = (TIMELINE_END_HOUR - TIMELINE_START_HOUR) * TIMELINE_PX_PER_HOUR;
+    wrap.style.height = totalH + 'px';
+    wrap.innerHTML = '';
+
+    for (let h = TIMELINE_START_HOUR; h <= TIMELINE_END_HOUR; h++) {
+      const div = document.createElement('div');
+      div.className = 'studies-tl-hour';
+      div.style.top = ((h - TIMELINE_START_HOUR) * TIMELINE_PX_PER_HOUR) + 'px';
+      div.style.height = TIMELINE_PX_PER_HOUR + 'px';
+      const lbl = document.createElement('span');
+      lbl.className = 'studies-tl-hour-label';
+      let dh = h % 12; if (dh === 0) dh = 12;
+      lbl.textContent = dh + (h >= 12 && h < 24 ? 'p' : 'a');
+      div.appendChild(lbl);
+      wrap.appendChild(div);
+    }
+
+    const blocks = getSchedule().map(b => {
+      const bb = blockBounds(b); return bb ? Object.assign({}, b, bb) : null;
+    }).filter(Boolean).sort((a, b) => a.s - b.s);
+
+    const nm = nowMinutes();
+    blocks.forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'studies-tl-block';
+      const top = timeToPx(b.s);
+      const bottom = timeToPx(b.e);
+      div.style.top = top + 'px';
+      div.style.height = Math.max(12, bottom - top - 2) + 'px';
+      const meta = kindMeta(b.kind);
+      // Inline color override (CSS-var values would compute at runtime via getComputedStyle; simpler to hardcode rgb tints by kind)
+      const tint = {
+        study:    'rgba(107,227,164,',
+        class:    'rgba(125,211,252,',
+        work:     'rgba(242,192,99,',
+        exercise: 'rgba(255,107,107,',
+        meal:     'rgba(255,176,122,',
+        break:    'rgba(184,182,176,',
+        sleep:    'rgba(192,132,252,',
+        personal: 'rgba(244,114,182,'
+      }[b.kind] || 'rgba(184,182,176,';
+      div.style.background = tint + '0.18)';
+      div.style.borderColor = tint + '0.36)';
+      div.title = (b.title || '') + ' · ' + (b.start || '') + '–' + (b.end || '');
+      const isActive = nm >= b.s && nm < b.e;
+      if (isActive) div.classList.add('is-active');
+      if (b.done) div.classList.add('is-done');
+      div.textContent = meta.icon + ' ' + (b.title || '');
+      div.addEventListener('click', () => {
+        const el = document.querySelector('[data-block-id="' + b.id + '"]');
+        if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.boxShadow = '0 0 0 2px rgba(125,211,252,0.6)'; setTimeout(() => { el.style.boxShadow = ''; }, 900); }
+      });
+      wrap.appendChild(div);
+    });
+
+    // "Now" line
+    const nowLine = document.createElement('div');
+    nowLine.className = 'studies-tl-now';
+    const nowPx = timeToPx(nm);
+    nowLine.style.top = nowPx + 'px';
+    wrap.appendChild(nowLine);
+  }
+
+  // ---------- block list (right column) ----------
+  function renderList() {
+    const listEl = document.getElementById('studiesList');
+    const emptyEl = document.getElementById('studiesEmpty');
+    listEl.innerHTML = '';
+    const arr = getSchedule().slice().sort((a, b) => (parseHM(a.start) || 0) - (parseHM(b.start) || 0));
+    if (arr.length === 0) { emptyEl.style.display = 'block'; return; }
+    emptyEl.style.display = 'none';
+    const nm = nowMinutes();
+    arr.forEach(b => {
+      const bb = blockBounds(b); if (!bb) return;
+      const row = document.createElement('div');
+      row.className = 'studies-row';
+      row.dataset.blockId = b.id;
+      if (bb.s <= nm && nm < bb.e) row.classList.add('is-active');
+      if (b.done) row.classList.add('is-done');
+
+      const time = document.createElement('span');
+      time.className = 'studies-row-time';
+      time.textContent = (b.start || '') + ' – ' + (b.end || '');
+      row.appendChild(time);
+
+      const kind = document.createElement('span');
+      kind.className = 'studies-row-kind';
+      kind.textContent = kindMeta(b.kind).icon;
+      kind.title = b.kind || 'personal';
+      row.appendChild(kind);
+
+      const title = document.createElement('span');
+      title.className = 'studies-row-title';
+      title.textContent = b.title || '';
+      title.addEventListener('click', () => beginEdit(title, b.id));
+      row.appendChild(title);
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'studies-row-check';
+      cb.checked = !!b.done;
+      cb.addEventListener('change', () => {
+        const list = getSchedule();
+        const it = list.find(x => x.id === b.id);
+        if (!it) return;
+        it.done = cb.checked;
+        setSchedule(list);
+        renderAll();
+      });
+      row.appendChild(cb);
+
+      const del = document.createElement('button');
+      del.className = 'studies-row-del';
+      del.type = 'button';
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.addEventListener('click', () => {
+        const list = getSchedule().filter(x => x.id !== b.id);
+        setSchedule(list);
+        renderAll();
+      });
+      row.appendChild(del);
+
+      listEl.appendChild(row);
+    });
+  }
+
+  function beginEdit(textEl, blockId) {
+    if (textEl.getAttribute('contenteditable') === 'true') return;
+    const original = textEl.textContent;
+    textEl.setAttribute('contenteditable', 'true');
+    textEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textEl); range.collapse(false);
+    const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    function commit() {
+      const next = textEl.textContent.trim();
+      textEl.removeAttribute('contenteditable');
+      if (next && next !== original) {
+        const list = getSchedule();
+        const it = list.find(x => x.id === blockId);
+        if (it) { it.title = next; setSchedule(list); }
+        renderAll();
+      } else { textEl.textContent = original; }
+    }
+    textEl.addEventListener('blur', commit, { once: true });
+    textEl.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Enter') { e.preventDefault(); textEl.removeEventListener('keydown', onKey); textEl.blur(); }
+      else if (e.key === 'Escape') {
+        e.preventDefault(); textEl.removeEventListener('keydown', onKey);
+        textEl.textContent = original; textEl.removeAttribute('contenteditable');
+      }
+    });
+  }
+
+  function renderAll() {
+    renderTimeline();
+    renderList();
+  }
+
+  // ---------- add form ----------
+  function newId() { return 'b' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+
+  const addToggle = document.getElementById('studiesAddToggle');
+  const addForm   = document.getElementById('studiesAddForm');
+  const addCancel = document.getElementById('studiesAddCancel');
+  addToggle.addEventListener('click', () => {
+    const hidden = addForm.hasAttribute('hidden');
+    if (hidden) {
+      addForm.removeAttribute('hidden');
+      addToggle.style.display = 'none';
+      document.getElementById('studiesStart').focus();
+    }
+  });
+  addCancel.addEventListener('click', () => {
+    addForm.setAttribute('hidden', '');
+    addToggle.style.display = '';
+    addForm.reset();
+  });
+  addForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const start = document.getElementById('studiesStart').value;
+    const end   = document.getElementById('studiesEnd').value;
+    const title = document.getElementById('studiesTitleInput').value.trim();
+    const kind  = document.getElementById('studiesKind').value;
+    if (!parseHM(start) || !parseHM(end) || !title) return;
+    const list = getSchedule();
+    list.push({ id: newId(), start, end, title, kind, done: false });
+    setSchedule(list);
+    addForm.reset();
+    addForm.setAttribute('hidden', '');
+    addToggle.style.display = '';
+    renderAll();
+  });
+
+  // ---------- chat ----------
+  const CHAT_KEY = 'studies_chat:' + getActiveDateString();
+  function getChatLog() { const a = storeGet(CHAT_KEY); return Array.isArray(a) ? a : []; }
+  function setChatLog(arr) { storeSet(CHAT_KEY, arr); }
+  function appendMsg(role, content) {
+    const log = getChatLog();
+    log.push({ role, content, ts: Date.now() });
+    if (log.length > 80) log.splice(0, log.length - 80);
+    setChatLog(log);
+    renderChatLog();
+  }
+  function renderChatLog() {
+    const logEl = document.getElementById('studiesChatLog');
+    const log = getChatLog();
+    logEl.innerHTML = '';
+    if (log.length === 0) {
+      const sys = document.createElement('div');
+      sys.className = 'studies-chat-msg system';
+      sys.textContent = "Hi — tell me what you want to fit into today and I'll lay it out. e.g. \"I have a bio exam at 6pm, prep me for it.\"";
+      logEl.appendChild(sys);
+      return;
+    }
+    log.forEach(m => {
+      const el = document.createElement('div');
+      el.className = 'studies-chat-msg ' + (m.role === 'user' ? 'user' : m.role === 'system' ? 'system' : 'assistant');
+      el.textContent = m.content;
+      logEl.appendChild(el);
+    });
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function showThinking(on) {
+    const logEl = document.getElementById('studiesChatLog');
+    let t = logEl.querySelector('.studies-chat-thinking');
+    if (on) {
+      if (!t) {
+        t = document.createElement('div');
+        t.className = 'studies-chat-thinking';
+        t.innerHTML = '<span></span><span></span><span></span>';
+        logEl.appendChild(t);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    } else if (t) t.remove();
+  }
+  function setStatus(msg, kind) {
+    const el = document.getElementById('studiesChatStatus');
+    el.textContent = msg || '';
+    el.classList.remove('error', 'ok');
+    if (kind === 'error') el.classList.add('error');
+    if (kind === 'ok')    el.classList.add('ok');
+    if (msg) {
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.textContent = ''; el.classList.remove('error', 'ok'); }, 4500);
+    }
+  }
+
+  async function callClaude(userMessage) {
+    const now = new Date();
+    const sched = getSchedule();
+    const sys =
+      "You are Hector's day-planner assistant inside a personal dashboard.\n" +
+      "You can rewrite his schedule when he asks. Times are 24h HH:MM in local time.\n" +
+      "Valid kinds: study, class, work, exercise, meal, break, sleep, personal.\n" +
+      "Respond ONLY with a single JSON object, no preamble, no code fences:\n" +
+      '{ "reply": "<short conversational reply, 1-3 sentences>", "schedule": <OPTIONAL array of {start,end,title,kind}> }\n' +
+      "Only include \"schedule\" if you want to REPLACE the whole day. Keep titles short. Use his current schedule and the current time as context.";
+    const ctx =
+      "Current date: " + getActiveDateString() + " (" + formatDate(getActiveDateString()) + ")\n" +
+      "Current time: " + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + "\n" +
+      "Current schedule: " + JSON.stringify(sched.map(b => ({ start: b.start, end: b.end, title: b.title, kind: b.kind, done: !!b.done })));
+
+    // Include short chat history (excluding system bubbles)
+    const log = getChatLog().filter(m => m.role === 'user' || m.role === 'assistant').slice(-8);
+    const messages = [];
+    messages.push({ role: 'user', content: ctx + "\n\n" + userMessage });
+    // (We send the system prompt via the `system` field, not as a message.)
+    // Previous turns: we keep just the latest user→assistant pairs so the model has continuity.
+    if (log.length > 1) {
+      const prior = log.slice(0, -1); // everything except the just-appended user msg
+      // We injected user message above already; rebuild as alternating turns from prior.
+      messages.length = 0;
+      prior.forEach(m => messages.push({ role: m.role, content: m.content }));
+      messages.push({ role: 'user', content: ctx + "\n\n" + userMessage });
+    }
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2000,
+        system: sys,
+        messages
+      })
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error('HTTP ' + res.status + ' ' + t.slice(0, 120));
+    }
+    const data = await res.json();
+    const raw = (data && data.content && data.content[0] && data.content[0].text) || '';
+    // Try to find a JSON object inside the response
+    let obj = null;
+    try { obj = JSON.parse(raw); }
+    catch (e) {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m) { try { obj = JSON.parse(m[0]); } catch (_) {} }
+    }
+    if (!obj || typeof obj !== 'object') {
+      return { reply: raw.trim() || '…', schedule: null };
+    }
+    return obj;
+  }
+
+  function applyScheduleFromAi(blocks) {
+    if (!Array.isArray(blocks)) return 0;
+    const cleaned = [];
+    blocks.forEach(b => {
+      if (!b || typeof b !== 'object') return;
+      const start = String(b.start || '').trim();
+      const end   = String(b.end   || '').trim();
+      const title = String(b.title || '').trim();
+      let kind = String(b.kind || 'personal').trim().toLowerCase();
+      if (!KIND_META[kind]) kind = 'personal';
+      if (!parseHM(start) || !parseHM(end) || !title) return;
+      cleaned.push({ id: newId(), start, end, title, kind, done: false });
+    });
+    setSchedule(cleaned);
+    renderAll();
+    return cleaned.length;
+  }
+
+  document.getElementById('studiesChatSend').addEventListener('click', sendChat);
+  document.getElementById('studiesChatInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+  });
+
+  async function sendChat() {
+    const input = document.getElementById('studiesChatInput');
+    const btn = document.getElementById('studiesChatSend');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    appendMsg('user', text);
+    if (!ANTHROPIC_API_KEY) {
+      appendMsg('system', 'Add your Anthropic API key in studies.html (top of the script) to enable Claude.');
+      return;
+    }
+    btn.disabled = true;
+    showThinking(true);
+    try {
+      const r = await callClaude(text);
+      showThinking(false);
+      const reply = (r && r.reply) || 'OK.';
+      appendMsg('assistant', reply);
+      if (r && Array.isArray(r.schedule)) {
+        const n = applyScheduleFromAi(r.schedule);
+        if (n > 0) setStatus('Schedule updated · ' + n + ' block' + (n === 1 ? '' : 's'), 'ok');
+      }
+    } catch (err) {
+      showThinking(false);
+      appendMsg('system', 'Claude error: ' + (err && err.message ? err.message : 'unknown'));
+      setStatus('Request failed', 'error');
+    } finally {
+      btn.disabled = false;
+      input.focus();
+    }
+  }
+
+  // ---------- Supabase sync (mirror dashboard pattern) ----------
+  const SC_SUPABASE_URL = 'https://veuocgntnerdbgzfcrzb.supabase.co';
+  const SC_SUPABASE_KEY = 'sb_publishable_PCTHhbGBXma7hvAFHZpPVA_bWw1rmSH';
+  const SC_APP_KEY = 'studies';
+  let scSupa = null;
+  let scPushTimer = null;
+  let scSuppressSync = true;
+  let scLastJson = null;
+  const _scOrigSet = localStorage.setItem.bind(localStorage);
+  const _scOrigRemove = localStorage.removeItem.bind(localStorage);
+  function scIsSyncedKey(k) {
+    return typeof k === 'string' && (k.indexOf('schedule:') === 0 || k.indexOf('studies_chat:') === 0);
+  }
+  function scMaybePush(k) {
+    if (scSuppressSync) return;
+    if (scIsSyncedKey(k)) scSchedulePush();
+  }
+  function scCollect() {
+    const out = { schedule: {}, chat: {} };
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (k.indexOf('schedule:') === 0) {
+        try { out.schedule[k.slice(9)] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+      } else if (k.indexOf('studies_chat:') === 0) {
+        try { out.chat[k.slice(13)] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+      }
+    }
+    return out;
+  }
+  function scApply(remote) {
+    if (!remote || typeof remote !== 'object') return false;
+    const wasSup = scSuppressSync; scSuppressSync = true;
+    let changed = false;
+    try {
+      const ours = { schedule: new Set(), chat: new Set() };
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i); if (!k) continue;
+        if (k.indexOf('schedule:') === 0) ours.schedule.add(k);
+        if (k.indexOf('studies_chat:') === 0) ours.chat.add(k);
+      }
+      const rs = remote.schedule || {};
+      for (const d of Object.keys(rs)) {
+        const fk = 'schedule:' + d;
+        const incoming = JSON.stringify(rs[d]);
+        if (localStorage.getItem(fk) !== incoming) { try { _scOrigSet(fk, incoming); changed = true; } catch (e) {} }
+        ours.schedule.delete(fk);
+      }
+      for (const fk of ours.schedule) { try { _scOrigRemove(fk); changed = true; } catch (e) {} }
+      const rc = remote.chat || {};
+      for (const d of Object.keys(rc)) {
+        const fk = 'studies_chat:' + d;
+        const incoming = JSON.stringify(rc[d]);
+        if (localStorage.getItem(fk) !== incoming) { try { _scOrigSet(fk, incoming); changed = true; } catch (e) {} }
+        ours.chat.delete(fk);
+      }
+      for (const fk of ours.chat) { try { _scOrigRemove(fk); changed = true; } catch (e) {} }
+    } finally { scSuppressSync = wasSup; }
+    if (changed) { renderAll(); renderChatLog(); }
+    return changed;
+  }
+  function scSchedulePush() {
+    if (scPushTimer) clearTimeout(scPushTimer);
+    scPushTimer = setTimeout(scPushNow, 400);
+  }
+  async function scPushNow() {
+    if (!scSupa) return;
+    const state = scCollect();
+    const j = JSON.stringify(state);
+    if (j === scLastJson) return;
+    try {
+      await scSupa.from('app_state').upsert(
+        { key: SC_APP_KEY, data: state, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
+      );
+      scLastJson = j;
+    } catch (e) {}
+  }
+  async function scInit() {
+    if (!window.supabase) return;
+    if (SC_SUPABASE_URL.indexOf('PASTE-') === 0) return;
+    scSupa = window.supabase.createClient(SC_SUPABASE_URL, SC_SUPABASE_KEY);
+    try {
+      const { data } = await scSupa
+        .from('app_state').select('data').eq('key', SC_APP_KEY).maybeSingle();
+      if (data && data.data) {
+        scApply(data.data);
+        scLastJson = JSON.stringify(scCollect());
+      }
+    } catch (e) {}
+    try {
+      scSupa.channel('app_state_studies')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + SC_APP_KEY },
+          (payload) => {
+            const next = payload.new && payload.new.data;
+            if (!next) return;
+            const j = JSON.stringify(next);
+            if (j === scLastJson) return;
+            scApply(next); scLastJson = j;
+          })
+        .subscribe();
+    } catch (e) {}
+  }
+
+  // ---------- Clock + boot ----------
+  function tickClock() {
+    document.getElementById('studiesClock').textContent = formatClock(new Date());
+  }
+
+  (async function boot() {
+    document.getElementById('studiesDate').textContent = formatDate(getActiveDateString());
+    await Promise.race([scInit(), new Promise(r => setTimeout(r, 2000))]);
+    scSuppressSync = false;
+    renderAll();
+    renderChatLog();
+    tickClock();
+    setInterval(tickClock, 30 * 1000);
+    setInterval(renderAll, 60 * 1000); // refresh "now" line + active highlight
+    window.addEventListener('storage', (e) => {
+      if (!e.key) return;
+      if (e.key.indexOf('schedule:') === 0 || e.key.indexOf('studies_chat:') === 0) {
+        renderAll(); renderChatLog();
+      }
+    });
+    scPushNow();
+  })();
+
+})();
+</script>
+</body>
+</html>
