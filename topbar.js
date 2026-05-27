@@ -16,6 +16,70 @@
 
   // -------- CSS --------
   const css = `
+/* ----- Page transitions (cross-document) ----- */
+@keyframes hec-page-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes hec-page-leave {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+body.hec-page-entering { animation: hec-page-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+body.hec-page-leaving  { animation: hec-page-leave  0.20s cubic-bezier(0.55, 0, 0.55, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  body.hec-page-entering, body.hec-page-leaving { animation: none; }
+}
+
+/* ----- Section transitions (intra-page tab switches) ----- */
+@keyframes hec-section-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.section[data-section]:not([hidden]),
+.gm-card,
+.now-hero,
+.day-ring-wrap,
+.ticker-row,
+.studies-card {
+  animation: hec-section-enter 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.section[data-section][hidden] { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .section[data-section]:not([hidden]),
+  .gm-card, .now-hero, .day-ring-wrap, .ticker-row, .studies-card {
+    animation: none;
+  }
+}
+
+/* Subtle stagger for the home dashboard's hero stack. */
+body.has-bottombar .now-hero       { animation-delay: 0.02s; }
+body.has-bottombar .ticker-row     { animation-delay: 0.08s; }
+body.has-bottombar .day-ring-wrap  { animation-delay: 0.14s; }
+body.has-bottombar .section > .gm-card:nth-of-type(1) { animation-delay: 0.20s; }
+body.has-bottombar .section > .gm-card:nth-of-type(2) { animation-delay: 0.26s; }
+
+/* Bottom-bar active state: a soft glow under the icon */
+.bottombar-tab { position: relative; }
+.bottombar-tab::after {
+  content: '';
+  position: absolute; left: 50%; bottom: 2px;
+  width: 22px; height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6EE7B7, #7DD3FC);
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s;
+}
+.bottombar-tab.active::after { transform: translateX(-50%) scaleX(1); opacity: 0.9; }
+
+/* Tab press feedback */
+.bot-tab, .bottombar-tab, .topbar-finance-btn, .topbar-water-add, .topbar-income-btn {
+  transition: transform 0.10s ease;
+}
+.bot-tab:active, .topbar-finance-btn:active { transform: scale(0.95); }
+
 .topbar {
   position: sticky; top: 0; z-index: 40;
   display: flex; justify-content: flex-end; align-items: center;
@@ -718,24 +782,19 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     return _supaClient;
   }
 
+  // Merge semantics: apply add/update from remote. NEVER delete a local
+  // key just because it's missing from remote — a device that hasn't yet
+  // loaded a page can be missing whole keys (e.g. topbar.js alone never
+  // touches nw:stocks). The previous "delete orphans" pass was destroying
+  // unrelated keys when sync fired from a partial-data device.
   function applyBucket(bucket, remote) {
     if (!remote || typeof remote !== 'object') return [];
     const changed = [];
-    const ourKeys = new Set();
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && syncOwns(bucket, k)) ourKeys.add(k);
-    }
     for (const k of Object.keys(remote)) {
       const incomingStr = JSON.stringify(remote[k]);
       if (localStorage.getItem(k) !== incomingStr) {
         try { _origSet(k, incomingStr); changed.push(k); } catch (e) {}
       }
-      ourKeys.delete(k);
-    }
-    // Remove any local keys that the remote no longer has
-    for (const k of ourKeys) {
-      try { _origRemove(k); changed.push(k); } catch (e) {}
     }
     if (changed.length) {
       try { window.dispatchEvent(new CustomEvent('storage-pulled', { detail: { bucket, keys: changed }})); } catch (e) {}
@@ -769,17 +828,28 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     clearTimeout(_pushTimers[bucket]);
     _pushTimers[bucket] = setTimeout(() => pushBucket(bucket), 600);
   }
+  // Merge-on-push: read current row, layer local on top, write merged.
+  // Prevents a device with a partial slice of the bucket (e.g. just
+  // nw:bank + nw:activity from the topbar's income button) from wiping
+  // out keys that only exist on other devices (nw:stocks, subs, …).
+  // Merge-on-push: read current row, layer local on top, write merged.
   async function pushBucket(bucket) {
     const sb = getSupa(); if (!sb) return;
-    const state = collectBucket(bucket);
-    const j = JSON.stringify(state);
-    if (j === _syncLastJson[bucket]) return;
+    const local = collectBucket(bucket);
+    const localJson = JSON.stringify(local);
+    // Skip if nothing local changed since the last push/pull.
+    if (localJson === _syncLastJson[bucket]) return;
     try {
+      const { data } = await sb.from('app_state').select('data').eq('key', bucket).maybeSingle();
+      const current = (data && data.data && typeof data.data === 'object') ? data.data : {};
+      const merged = Object.assign({}, current, local);
       await sb.from('app_state').upsert(
-        { key: bucket, data: state, updated_at: new Date().toISOString() },
+        { key: bucket, data: merged, updated_at: new Date().toISOString() },
         { onConflict: 'key' }
       );
-      _syncLastJson[bucket] = j;
+      // Track local state (not merged), so safety-net + subsequent pushes
+      // can detect actual local drift without spamming.
+      _syncLastJson[bucket] = localJson;
     } catch (e) {}
   }
 
@@ -837,12 +907,72 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     });
   }
 
+  // ----- Page transitions -----
+  function attachPageTransitions() {
+    // Add the entering class so the page animates in on load.
+    document.body.classList.add('hec-page-entering');
+    // Auto-remove the class once the animation ends so it doesn't replay
+    // on later DOM updates that re-trigger CSS animations.
+    setTimeout(() => document.body.classList.remove('hec-page-entering'), 360);
+
+    // Intercept nav clicks on the bottombar + the finance shortcut so the
+    // current page fades out before the browser navigates.
+    function isInternalLink(a) {
+      if (!a) return false;
+      const href = a.getAttribute('href');
+      if (!href) return false;
+      if (/^(#|mailto:|tel:|javascript:)/.test(href)) return false;
+      // Same-origin? Anchors with no host are same-origin by definition.
+      if (/^https?:/.test(href)) {
+        try { return new URL(href).origin === window.location.origin; }
+        catch (e) { return false; }
+      }
+      return true;
+    }
+    function handleNav(e) {
+      // Let modifier-clicks (cmd/ctrl/middle) open in new tab as usual.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+      const a = e.currentTarget;
+      if (!isInternalLink(a)) return;
+      const href = a.getAttribute('href');
+      // Skip same-page links (active tab)
+      const currentPath = (window.location.pathname || '').replace(/\/+$/, '');
+      const targetPath = href.split('#')[0].replace(/\/+$/, '');
+      if (targetPath === '' || currentPath.endsWith(targetPath) || targetPath.endsWith(currentPath.split('/').pop() || '')) {
+        // already there — let the click no-op (or just scroll to #anchor)
+        return;
+      }
+      e.preventDefault();
+      document.body.classList.add('hec-page-leaving');
+      const goto = () => { window.location.href = href; };
+      // 200ms matches the leave animation; tighter than that and the
+      // animation gets cut off mid-frame on first paint of the next page.
+      setTimeout(goto, 200);
+    }
+    document.querySelectorAll('.bottombar-tab, .topbar-finance-btn').forEach(a => {
+      a.addEventListener('click', handleNav);
+    });
+    // The back button on finance.html etc. (if any anchor goes to index)
+    document.querySelectorAll('a[href$="index.html"]').forEach(a => {
+      if (!a.classList.contains('bottombar-tab')) a.addEventListener('click', handleNav);
+    });
+    // pageshow fires on back-forward cache restore; replay enter animation
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        document.body.classList.remove('hec-page-leaving');
+        document.body.classList.add('hec-page-entering');
+        setTimeout(() => document.body.classList.remove('hec-page-entering'), 360);
+      }
+    });
+  }
+
   function boot() {
     injectStyleAndHTML();
     const btn = document.getElementById('topbarWaterAdd');
     if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
     wireIncomeModal();
     handleIncomeUrlParam();
+    attachPageTransitions();
     render();
     lockGestures();
     startModalLock();

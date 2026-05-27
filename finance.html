@@ -1566,6 +1566,212 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 600px) {
   .sub-auto-toggle { width: 100%; justify-content: space-between; padding: 12px 14px; }
 }
+
+/* ===== Spending Flow (Sankey) ===== */
+.flow-hero {
+  display: flex;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.flow-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.flow-hero-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.flow-hero-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.flow-hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.flow-stat-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.flow-stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  margin-top: 2px;
+  text-align: center;
+}
+.flow-stat-in   { color: #6BE3A4; }
+.flow-stat-out  { color: #FF8A8A; }
+.flow-stat-left { color: #FAFAFA; }
+.flow-stat-left.is-deficit { color: #FF8A8A; }
+.flow-stat-sep {
+  font-size: 18px;
+  color: var(--text-tertiary);
+  margin-top: 12px;
+}
+
+.flow-card {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.flow-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.flow-toolbar-left { display: flex; align-items: center; gap: 10px; }
+.flow-toolbar-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.flow-segmented {
+  display: inline-flex;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.flow-seg {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.flow-seg:hover { color: var(--text-primary); }
+.flow-seg.active {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+}
+.flow-toolbar-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.flow-svg-wrap {
+  position: relative;
+  padding: 12px 8px 14px;
+  min-height: 320px;
+}
+.flow-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.flow-node {
+  cursor: pointer;
+  transition: opacity 0.22s ease;
+}
+.flow-node-rect {
+  rx: 3;
+  ry: 3;
+  transition: filter 0.22s, opacity 0.22s;
+}
+.flow-node-label {
+  fill: rgba(255,255,255,0.92);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.flow-node-amt {
+  fill: rgba(255,255,255,0.55);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.flow-link {
+  opacity: 0.42;
+  transition: opacity 0.25s ease;
+  cursor: pointer;
+}
+.flow-link:hover { opacity: 0.85; }
+.flow-svg.has-focus .flow-link:not(.is-focus) {
+  opacity: 0.08;
+}
+.flow-svg.has-focus .flow-node:not(.is-focus) {
+  opacity: 0.35;
+}
+.flow-svg.has-focus .flow-link.is-focus { opacity: 0.95; }
+.flow-svg.has-focus .flow-node.is-focus { opacity: 1; }
+
+.flow-tooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(15, 15, 18, 0.96);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 10px));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.flow-tooltip.show { opacity: 1; }
+.flow-tooltip-amt {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+}
+
+.flow-empty {
+  padding: 32px 22px 36px;
+  text-align: center;
+}
+.flow-empty-icon { font-size: 36px; margin-bottom: 8px; }
+.flow-empty-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.flow-empty-sub {
+  font-size: 13px; color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.flow-empty-sub strong { color: #6EE7B7; }
+
+@media (max-width: 600px) {
+  .flow-hero-top { flex-direction: column; align-items: flex-start; }
+  .flow-hero-stats { width: 100%; justify-content: space-between; }
+  .flow-stat-val { font-size: 14px; }
+  .flow-toolbar { padding: 12px 14px 6px; }
+  .flow-toolbar-hint { display: none; }
+  .flow-node-label { font-size: 10.5px; }
+  .flow-node-amt { font-size: 9.5px; }
+}
 </style>
 </head>
 <body>
@@ -1862,6 +2068,62 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </div>
 </div>
 
+<!-- ===== SPENDING FLOW (Sankey) ===== -->
+<div class="section" data-section="flow">
+  <div class="section-title">
+    <span class="section-title-text">SPENDING FLOW</span>
+  </div>
+
+  <div class="card flow-hero">
+    <div class="flow-hero-top">
+      <div>
+        <div class="flow-hero-eyebrow">MONTHLY FLOW</div>
+        <div class="flow-hero-sub" id="flowSub">Subs and recurring spend, grouped by category.</div>
+      </div>
+      <div class="flow-hero-stats">
+        <div class="flow-stat">
+          <div class="flow-stat-label">IN</div>
+          <div class="flow-stat-val flow-stat-in" id="flowStatIn">—</div>
+        </div>
+        <div class="flow-stat-sep">→</div>
+        <div class="flow-stat">
+          <div class="flow-stat-label">OUT</div>
+          <div class="flow-stat-val flow-stat-out" id="flowStatOut">—</div>
+        </div>
+        <div class="flow-stat-sep">=</div>
+        <div class="flow-stat">
+          <div class="flow-stat-label">LEFT</div>
+          <div class="flow-stat-val flow-stat-left" id="flowStatLeft">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card flow-card">
+    <div class="flow-toolbar">
+      <div class="flow-toolbar-left">
+        <span class="flow-toolbar-label">View</span>
+        <div class="flow-segmented" role="tablist" aria-label="Flow view">
+          <button class="flow-seg active" data-flow-view="month" type="button">Month</button>
+          <button class="flow-seg" data-flow-view="year" type="button">Year</button>
+        </div>
+      </div>
+      <div class="flow-toolbar-right">
+        <span class="flow-toolbar-hint">Click a category to focus · click again to clear</span>
+      </div>
+    </div>
+    <div class="flow-svg-wrap" id="flowSvgWrap">
+      <svg class="flow-svg" id="flowSvg" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+    </div>
+    <div class="flow-tooltip" id="flowTooltip" role="tooltip" hidden></div>
+    <div class="flow-empty" id="flowEmpty" hidden>
+      <div class="flow-empty-icon">🌊</div>
+      <div class="flow-empty-title">No spend to visualise yet</div>
+      <div class="flow-empty-sub">Add a couple of subs (or use <strong>+$</strong> in the topbar to log income) and the diagram will fill itself in.</div>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <!-- ===== BOTTOM TAB BAR ===== -->
@@ -1881,6 +2143,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <button class="bot-tab" data-tab="wish">
     <span class="bot-tab-icon">🎯</span>
     <span class="bot-tab-label">Wishlist</span>
+  </button>
+  <button class="bot-tab" data-tab="flow">
+    <span class="bot-tab-icon">🌊</span>
+    <span class="bot-tab-label">Flow</span>
   </button>
 </nav>
 
@@ -1943,7 +2209,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   tabs.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
   const savedTab = storeGet(TAB_KEY);
-  setActiveTab(savedTab && ['net','subs','incoming','wish'].includes(savedTab) ? savedTab : 'net');
+  setActiveTab(savedTab && ['net','subs','incoming','wish','flow'].includes(savedTab) ? savedTab : 'net');
 
   // ============================================================
   // NET WORTH (copied from the main dashboard, verbatim logic)
@@ -3385,16 +3651,386 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   safeRenderTicker();
   setInterval(safeRenderTicker, 1500);
 
-  // Re-render everything when the global sync (topbar.js) pulls fresh data
-  // from Supabase, or when another tab/page writes to one of our keys.
-  function refreshAllFromSync() {
-    try { renderAllNetWorth(); } catch (e) {}
-    try { renderActivity(); } catch (e) {}
-    try { renderSubs(); } catch (e) {}
-    try { renderWishlist(); } catch (e) {}
-    try { renderOrders(); } catch (e) {}
-    try { safeRenderTicker(); } catch (e) {}
+  // ============================================================
+  // SPENDING FLOW — vanilla SVG Sankey from subs ↔ categories.
+  // ============================================================
+  const FLOW_CAT_RULES = [
+    { cat: 'Housing',       color: '#7B6BE3', kws: ['rent','alquiler','hipoteca','mortgage','wifi','internet','electric','luz','gas','water','agua','strom','utilit','council','hoa'] },
+    { cat: 'Mobility',      color: '#7DD3FC', kws: ['fuel','gasolina','combust','train','bahn','transport','parking','uber','metro','bus','tram','car','tax','peaje','toll','sbb'] },
+    { cat: 'Food & Drink',  color: '#FFB07A', kws: ['food','grocer','supermarket','lidl','aldi','mercadona','migros','coop','restaur','eat','glovo','rappi','deliveroo','starbucks','cafe','bar','snack'] },
+    { cat: 'Subscriptions', color: '#F472B6', kws: ['netflix','spotify','prime','youtube','disney','hbo','apple','icloud','gpt','chatgpt','claude','openai','linear','figma','adobe','dropbox','notion','github','vercel','aws','google','cursor'] },
+    { cat: 'Insurance',     color: '#34D399', kws: ['insurance','seguro','versicherung','medical','health','sanitas','axa','generali'] },
+    { cat: 'Personal',      color: '#F2C063', kws: ['gym','fitness','barber','peluqu','clothes','ropa','shopping','amazon','beauty','spa'] },
+    { cat: 'Other',         color: '#B8B6B0', kws: [] }
+  ];
+  function classifyFlowCategory(it) {
+    if (it && it.category) {
+      const m = FLOW_CAT_RULES.find(r => r.cat.toLowerCase() === String(it.category).toLowerCase());
+      if (m) return m;
+    }
+    const name = String((it && it.name) || '').toLowerCase();
+    for (const rule of FLOW_CAT_RULES) {
+      if (rule.kws.some(k => name.indexOf(k) >= 0)) return rule;
+    }
+    return FLOW_CAT_RULES[FLOW_CAT_RULES.length - 1]; // Other
   }
+
+  function getMonthlyIncomeCHF() {
+    const acts = storeGet('nw:activity') || [];
+    const cutoff = Date.now() - 30 * 86400000;
+    let total = 0;
+    for (const a of acts) {
+      if (a.kind === 'income' && a.ts >= cutoff) total += Number(a.delta) || 0;
+    }
+    return total;
+  }
+
+  let _flowView = 'month';      // 'month' | 'year'
+  let _flowFocusCat = null;     // category name or null
+
+  function fmtFlow(v) {
+    // Use the same currency formatting the rest of finance uses (fmtMoney
+    // already converts CHF -> current display currency).
+    return fmtMoney(v);
+  }
+
+  function renderFlow() {
+    const svg = document.getElementById('flowSvg');
+    const wrap = document.getElementById('flowSvgWrap');
+    const emptyEl = document.getElementById('flowEmpty');
+    if (!svg || !wrap) return;
+
+    const subs = (storeGet('subs') || []).filter(s => s && s.name);
+    const monthlyByCat = new Map();   // cat -> total CHF/mo
+    const itemsByCat = new Map();     // cat -> [{ name, monthlyCHF }, ...]
+    let totalMonthly = 0;
+
+    subs.forEach(s => {
+      const m = monthlyEquivalent(s);
+      if (!(m > 0)) return;
+      const rule = classifyFlowCategory(s);
+      const cat = rule.cat;
+      monthlyByCat.set(cat, (monthlyByCat.get(cat) || 0) + m);
+      const arr = itemsByCat.get(cat) || [];
+      arr.push({ name: s.name, monthlyCHF: m, color: rule.color });
+      itemsByCat.set(cat, arr);
+      totalMonthly += m;
+    });
+
+    const incomeMonthly = getMonthlyIncomeCHF();
+    const factor = (_flowView === 'year') ? 12 : 1;
+    const outTotal = totalMonthly * factor;
+    const inTotal  = incomeMonthly * factor;
+    const leftover = inTotal - outTotal;
+
+    document.getElementById('flowStatIn').textContent  = inTotal  > 0 ? fmtFlow(inTotal)  : '—';
+    document.getElementById('flowStatOut').textContent = outTotal > 0 ? fmtFlow(outTotal) : '—';
+    const leftEl = document.getElementById('flowStatLeft');
+    if (inTotal > 0 && outTotal > 0) {
+      leftEl.textContent = (leftover >= 0 ? '+' : '−') + fmtFlow(Math.abs(leftover));
+      leftEl.classList.toggle('is-deficit', leftover < 0);
+    } else {
+      leftEl.textContent = '—';
+      leftEl.classList.remove('is-deficit');
+    }
+
+    if (totalMonthly <= 0) {
+      svg.innerHTML = '';
+      emptyEl.hidden = false;
+      return;
+    }
+    emptyEl.hidden = true;
+
+    // ---------- layout ----------
+    const isMobile = wrap.clientWidth < 540;
+    const W = Math.max(360, wrap.clientWidth - 16);
+    const COL_W = isMobile ? 8 : 12;
+    const LABEL_W = isMobile ? 96 : 144;
+    const PAD_TOP = 22;
+    const PAD_BOT = 14;
+    const GAP_BETWEEN = 6;
+    const MIN_NODE_H = 14;
+    const MAX_H = Math.max(360, Math.min(720, totalMonthly > 0 ? 16 * 22 + (itemsByCat.size + subs.length) * 4 : 360));
+    // Compute heights from values
+    const cats = [...monthlyByCat.entries()]
+      .map(([cat, val]) => ({ cat, val, rule: FLOW_CAT_RULES.find(r => r.cat === cat) }))
+      .sort((a, b) => b.val - a.val);
+    const allItems = [];
+    cats.forEach(c => {
+      const arr = (itemsByCat.get(c.cat) || []).slice().sort((a, b) => b.monthlyCHF - a.monthlyCHF);
+      arr.forEach(it => allItems.push({ ...it, cat: c.cat, ruleColor: c.rule.color }));
+    });
+
+    // Total height needed for items column (driving layout)
+    const itemGap = 4;
+    const catGap = 10;
+    const targetH = MAX_H;
+    // Scale: total items height + gaps = targetH - PAD_TOP - PAD_BOT
+    const itemsBudget = targetH - PAD_TOP - PAD_BOT - Math.max(0, (allItems.length - 1)) * itemGap - Math.max(0, (cats.length - 1)) * catGap;
+    const itemScale = itemsBudget / totalMonthly;
+    // Ensure each item has min height
+    const itemsWithH = allItems.map(it => ({ ...it, h: Math.max(MIN_NODE_H, it.monthlyCHF * itemScale) }));
+    // Sum of forced minimums could push us over; rescale if needed
+    let sumH = itemsWithH.reduce((s, it) => s + it.h, 0);
+    if (sumH > itemsBudget) {
+      const k = itemsBudget / sumH;
+      itemsWithH.forEach(it => it.h = Math.max(MIN_NODE_H * 0.8, it.h * k));
+      sumH = itemsWithH.reduce((s, it) => s + it.h, 0);
+    }
+
+    // Group by category in display order
+    const catLayouts = [];
+    let yCursor = PAD_TOP;
+    cats.forEach((c, ci) => {
+      const myItems = itemsWithH.filter(it => it.cat === c.cat);
+      const catY = yCursor;
+      let catH = 0;
+      myItems.forEach((it, i) => {
+        it.y = yCursor;
+        yCursor += it.h;
+        catH += it.h;
+        if (i < myItems.length - 1) yCursor += itemGap;
+      });
+      catLayouts.push({ ...c, y: catY, h: catH, items: myItems });
+      if (ci < cats.length - 1) yCursor += catGap;
+    });
+    const totalUsedH = yCursor + PAD_BOT;
+    const H = Math.max(280, totalUsedH);
+
+    // Compute Income (left) column
+    const incY = PAD_TOP;
+    const incH = H - PAD_TOP - PAD_BOT;
+
+    // X positions
+    const xLeftCol = LABEL_W * 0.0;        // we'll shift labels via CSS; nodes start here
+    const xIncomeRight = xLeftCol + COL_W; // node width
+    const xCatLeft = (W - LABEL_W * 1.0) * 0.42;
+    const xCatRight = xCatLeft + COL_W;
+    const xItemLeft = W - LABEL_W * 0.10 - COL_W;
+    const xItemRight = xItemLeft + COL_W;
+
+    // ---------- build SVG ----------
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+
+    const parts = [];
+
+    // Defs: linear gradients per category, for flows
+    parts.push('<defs>');
+    cats.forEach(c => {
+      const id = 'flow-grad-' + slug(c.cat);
+      parts.push(
+        '<linearGradient id="' + id + '" x1="0" x2="1" y1="0" y2="0">' +
+          '<stop offset="0" stop-color="' + c.rule.color + '" stop-opacity="0.55"/>' +
+          '<stop offset="1" stop-color="' + c.rule.color + '" stop-opacity="0.85"/>' +
+        '</linearGradient>'
+      );
+    });
+    parts.push('</defs>');
+
+    // INCOME / SPEND node (left)
+    const totalForLeft = inTotal > 0 ? inTotal : outTotal;
+    const leftLabel = inTotal > 0 ? 'Income' : 'Spending';
+    const leftColor = inTotal > 0 ? '#34D399' : '#7DD3FC';
+    parts.push(svgNode(xLeftCol, incY, COL_W, incH, leftColor, leftLabel, totalForLeft, 'left'));
+
+    // CATEGORY nodes
+    catLayouts.forEach(c => {
+      parts.push(svgNode(xCatLeft, c.y, COL_W, c.h, c.rule.color, c.cat, c.val * factor, 'mid', { dataCat: c.cat }));
+    });
+
+    // ITEM nodes + their labels (right column)
+    itemsWithH.forEach(it => {
+      parts.push(svgNode(xItemLeft, it.y, COL_W, it.h, it.ruleColor, it.name, it.monthlyCHF * factor, 'right', { dataCat: it.cat, dataName: it.name }));
+    });
+
+    // LINKS Income -> Categories
+    // We slice the income node proportionally by category value (in display order top→bottom).
+    let incSliceY = incY;
+    catLayouts.forEach(c => {
+      const pct = c.val / totalMonthly;
+      const sliceH = pct * incH;
+      const y0a = incSliceY;
+      const y0b = incSliceY + sliceH;
+      const y1a = c.y;
+      const y1b = c.y + c.h;
+      parts.push(svgLink(xIncomeRight, y0a, y0b, xCatLeft, y1a, y1b, 'url(#flow-grad-' + slug(c.cat) + ')', c.cat));
+      incSliceY += sliceH;
+    });
+
+    // LINKS Categories -> Items
+    catLayouts.forEach(c => {
+      let catSliceY = c.y;
+      c.items.forEach(it => {
+        const y0a = catSliceY;
+        const y0b = catSliceY + it.h;
+        const y1a = it.y;
+        const y1b = it.y + it.h;
+        parts.push(svgLink(xCatRight, y0a, y0b, xItemLeft, y1a, y1b, 'url(#flow-grad-' + slug(c.cat) + ')', c.cat, { name: it.name }));
+        catSliceY += it.h;
+      });
+    });
+
+    svg.innerHTML = parts.join('');
+    applyFlowFocus();
+    wireFlowInteractions(svg);
+  }
+
+  function svgNode(x, y, w, h, color, label, amount, side, opts) {
+    opts = opts || {};
+    const dataAttrs = (opts.dataCat ? ' data-cat="' + escapeHtml(opts.dataCat) + '"' : '') +
+                      (opts.dataName ? ' data-name="' + escapeHtml(opts.dataName) + '"' : '');
+    const cls = 'flow-node flow-node-' + side + (opts.dataCat ? ' flow-node-cat-' + slug(opts.dataCat) : '');
+    let labelX, labelAnchor;
+    if (side === 'left')  { labelX = x + w + 6;  labelAnchor = 'start'; }
+    if (side === 'right') { labelX = x - 6;      labelAnchor = 'end';   }
+    if (side === 'mid')   { labelX = x + w + 6;  labelAnchor = 'start'; }
+    const labelY = y + Math.max(12, h / 2 - 4);
+    const amtY   = labelY + 12;
+    // Truncate long labels for the SVG (visual)
+    const maxLen = side === 'right' ? 22 : 18;
+    const visibleLabel = label.length > maxLen ? label.slice(0, maxLen - 1) + '…' : label;
+    return (
+      '<g class="' + cls + '"' + dataAttrs + '>' +
+        '<rect class="flow-node-rect" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + color + '"/>' +
+        '<text class="flow-node-label" x="' + labelX + '" y="' + labelY + '" text-anchor="' + labelAnchor + '">' + escapeHtml(visibleLabel) + '</text>' +
+        '<text class="flow-node-amt"   x="' + labelX + '" y="' + amtY   + '" text-anchor="' + labelAnchor + '">' + escapeHtml(fmtFlow(amount)) + '</text>' +
+      '</g>'
+    );
+  }
+
+  function svgLink(x0, y0a, y0b, x1, y1a, y1b, stroke, cat, opts) {
+    opts = opts || {};
+    const cx0 = x0 + (x1 - x0) * 0.5;
+    const cx1 = x0 + (x1 - x0) * 0.5;
+    // Build a filled "ribbon" between the two ranges
+    const top    = 'M ' + x0 + ' ' + y0a + ' C ' + cx0 + ' ' + y0a + ', ' + cx1 + ' ' + y1a + ', ' + x1 + ' ' + y1a;
+    const bottom = 'L ' + x1 + ' ' + y1b + ' C ' + cx1 + ' ' + y1b + ', ' + cx0 + ' ' + y0b + ', ' + x0 + ' ' + y0b + ' Z';
+    const d = top + ' ' + bottom;
+    const dataAttrs = ' data-cat="' + escapeHtml(cat) + '"' + (opts.name ? ' data-name="' + escapeHtml(opts.name) + '"' : '');
+    return '<path class="flow-link flow-link-cat-' + slug(cat) + '" d="' + d + '" fill="' + stroke + '"' + dataAttrs + '></path>';
+  }
+
+  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+
+  function applyFlowFocus() {
+    const svg = document.getElementById('flowSvg');
+    if (!svg) return;
+    if (!_flowFocusCat) {
+      svg.classList.remove('has-focus');
+      svg.querySelectorAll('.is-focus').forEach(el => el.classList.remove('is-focus'));
+      return;
+    }
+    svg.classList.add('has-focus');
+    svg.querySelectorAll('.is-focus').forEach(el => el.classList.remove('is-focus'));
+    svg.querySelectorAll('[data-cat="' + cssEsc(_flowFocusCat) + '"]').forEach(el => el.classList.add('is-focus'));
+  }
+  function cssEsc(s) { return String(s).replace(/"/g, '\\"'); }
+
+  function wireFlowInteractions(svg) {
+    const tooltip = document.getElementById('flowTooltip');
+    if (!svg || !tooltip) return;
+    svg.querySelectorAll('.flow-node[data-cat], .flow-link').forEach(el => {
+      el.addEventListener('mouseenter', (ev) => {
+        const cat = el.getAttribute('data-cat');
+        const name = el.getAttribute('data-name');
+        const label = name || cat || '';
+        const cats = catLookup();
+        let amount = 0;
+        if (name) {
+          const subs = (storeGet('subs') || []).filter(s => s && s.name === name);
+          subs.forEach(s => amount += monthlyEquivalent(s));
+        } else if (cat) {
+          amount = cats.get(cat) || 0;
+        }
+        const factor = (_flowView === 'year') ? 12 : 1;
+        tooltip.innerHTML = '<span class="flow-tooltip-label">' + escapeHtml(label) + '</span><span class="flow-tooltip-amt">' + escapeHtml(fmtFlow(amount * factor)) + (_flowView === 'year' ? '/yr' : '/mo') + '</span>';
+        tooltip.hidden = false;
+        positionFlowTooltip(ev);
+        requestAnimationFrame(() => tooltip.classList.add('show'));
+      });
+      el.addEventListener('mousemove', positionFlowTooltip);
+      el.addEventListener('mouseleave', () => {
+        tooltip.classList.remove('show');
+        setTimeout(() => { tooltip.hidden = true; }, 160);
+      });
+      el.addEventListener('click', () => {
+        const cat = el.getAttribute('data-cat');
+        if (!cat) return;
+        _flowFocusCat = (_flowFocusCat === cat) ? null : cat;
+        applyFlowFocus();
+      });
+    });
+  }
+
+  function positionFlowTooltip(ev) {
+    const wrap = document.getElementById('flowSvgWrap');
+    const tooltip = document.getElementById('flowTooltip');
+    if (!wrap || !tooltip) return;
+    const rect = wrap.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  }
+
+  function catLookup() {
+    const map = new Map();
+    const subs = storeGet('subs') || [];
+    subs.forEach(s => {
+      if (!s || !s.name) return;
+      const m = monthlyEquivalent(s); if (!(m > 0)) return;
+      const cat = classifyFlowCategory(s).cat;
+      map.set(cat, (map.get(cat) || 0) + m);
+    });
+    return map;
+  }
+
+  // Wire view segmented control
+  document.querySelectorAll('.flow-seg').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.getAttribute('data-flow-view');
+      if (!v || v === _flowView) return;
+      _flowView = v;
+      document.querySelectorAll('.flow-seg').forEach(b => b.classList.toggle('active', b === btn));
+      renderFlow();
+    });
+  });
+
+  // Re-render on view changes that affect data
+  const _origRefreshAll = refreshAllFromSync;
+  refreshAllFromSync = function refreshAllFromSyncWithFlow() {
+    _origRefreshAll();
+    try { renderFlow(); } catch (e) {}
+  };
+
+  // When the Flow tab is clicked, re-render so the SVG is sized to the
+  // section that just became visible.
+  document.querySelectorAll('.bot-tab').forEach(b => {
+    b.addEventListener('click', () => {
+      if (b.dataset.tab === 'flow') requestAnimationFrame(renderFlow);
+    });
+  });
+
+  // Resize: redraw flow when window changes width
+  let _flowResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_flowResizeTimer);
+    _flowResizeTimer = setTimeout(() => {
+      const sec = document.querySelector('[data-section="flow"]');
+      if (sec && !sec.hasAttribute('hidden')) renderFlow();
+    }, 180);
+  });
+
+  // First render (in case the saved tab is "flow")
+  if ((storeGet(TAB_KEY) || 'net') === 'flow') {
+    requestAnimationFrame(renderFlow);
+  } else {
+    // Still warm it up so stats are visible on tab switch
+    try { renderFlow(); } catch (e) {}
+  }
+
   window.addEventListener('storage-pulled', (e) => {
     if (!e || !e.detail) { refreshAllFromSync(); return; }
     if (e.detail.bucket === 'finance') refreshAllFromSync();
