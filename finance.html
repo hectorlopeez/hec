@@ -1772,6 +1772,212 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .flow-node-label { font-size: 10.5px; }
   .flow-node-amt { font-size: 9.5px; }
 }
+
+/* ===== Activity Log ===== */
+.log-hero { padding: 18px 20px; margin-bottom: 12px; }
+.log-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-items: end;
+}
+.log-stat-label {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.log-stat-val {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 18px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.log-stat-in  { color: #6BE3A4; }
+.log-stat-out { color: #FF8A8A; }
+.log-stat-net { color: var(--text-primary); }
+.log-stat-net.is-deficit { color: #FF8A8A; }
+
+.log-toolbar { padding: 14px 18px; margin-bottom: 12px; }
+.log-toolbar-row {
+  display: flex; align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.log-toolbar-row:last-child { margin-bottom: 0; }
+.log-toolbar-label {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  min-width: 70px;
+}
+.log-cat-select {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.32);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.log-cat-select:focus { border-color: rgba(125,211,252,0.45); }
+
+.log-card { padding: 16px 18px; margin-bottom: 12px; }
+
+.log-cat-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.log-cat-row {
+  position: relative;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.025);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.18s;
+  overflow: hidden;
+}
+.log-cat-row:hover { background: rgba(255,255,255,0.05); }
+.log-cat-row.is-focused { background: rgba(255,255,255,0.06); }
+.log-cat-row-head {
+  display: flex; align-items: center;
+  gap: 10px;
+  position: relative;
+}
+.log-cat-icon {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.log-cat-name {
+  flex: 1;
+  font-size: 13.5px; font-weight: 700;
+  color: var(--text-primary);
+}
+.log-cat-amt {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.log-cat-amt.is-out { color: #FF8A8A; }
+.log-cat-amt.is-in  { color: #6BE3A4; }
+.log-cat-bar {
+  position: absolute; left: 0; bottom: 0;
+  height: 2.5px;
+  background: rgba(255,255,255,0.16);
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.log-cat-pct {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  margin-left: 8px;
+}
+
+.log-list-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.log-list-title {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.log-list-count {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+.log-entries {
+  display: flex; flex-direction: column;
+  gap: 4px;
+  max-height: 540px;
+  overflow-y: auto;
+}
+.log-entry {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.log-entry:hover { background: rgba(255,255,255,0.05); }
+.log-entry-when {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  text-align: left;
+  letter-spacing: 0.02em;
+}
+.log-entry-main {
+  display: flex; align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.log-entry-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.log-entry-meta {
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+.log-entry-name {
+  font-size: 13.5px; font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
+}
+.log-entry-cat {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+.log-entry-amt {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.log-entry-amt.is-in  { color: #6BE3A4; }
+.log-entry-amt.is-out { color: #FF8A8A; }
+
+.log-empty {
+  padding: 22px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+@media (max-width: 600px) {
+  .log-hero-stats { gap: 10px; }
+  .log-stat-val { font-size: 15px; }
+  .log-toolbar-label { min-width: 0; flex-basis: 100%; margin-bottom: 4px; }
+  .log-entry { grid-template-columns: 56px 1fr auto; gap: 8px; padding: 9px; }
+  .log-entry-when { font-size: 9.5px; }
+  .log-entry-name { font-size: 12.5px; }
+  .log-entry-amt { font-size: 12.5px; }
+}
 </style>
 </head>
 <body>
@@ -2124,6 +2330,84 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </div>
 </div>
 
+<!-- ===== ACTIVITY LOG (income/expense history) ===== -->
+<div class="section" data-section="log">
+  <div class="section-title">
+    <span class="section-title-text">ACTIVITY LOG</span>
+  </div>
+
+  <!-- Period stats -->
+  <div class="card log-hero">
+    <div class="log-hero-stats">
+      <div class="log-stat">
+        <div class="log-stat-label">INCOME · <span id="logPeriodLabel">this month</span></div>
+        <div class="log-stat-val log-stat-in" id="logStatIn">—</div>
+      </div>
+      <div class="log-stat">
+        <div class="log-stat-label">EXPENSES · <span class="log-period-mirror"></span></div>
+        <div class="log-stat-val log-stat-out" id="logStatOut">—</div>
+      </div>
+      <div class="log-stat">
+        <div class="log-stat-label">NET · <span class="log-period-mirror"></span></div>
+        <div class="log-stat-val log-stat-net" id="logStatNet">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card log-toolbar">
+    <div class="log-toolbar-row">
+      <span class="log-toolbar-label">Period</span>
+      <div class="flow-segmented" role="tablist" aria-label="Period">
+        <button class="flow-seg active" data-log-period="month" type="button">Month</button>
+        <button class="flow-seg" data-log-period="year" type="button">Year</button>
+        <button class="flow-seg" data-log-period="all" type="button">All</button>
+      </div>
+    </div>
+    <div class="log-toolbar-row">
+      <span class="log-toolbar-label">Type</span>
+      <div class="flow-segmented" role="tablist" aria-label="Type">
+        <button class="flow-seg active" data-log-type="all" type="button">All</button>
+        <button class="flow-seg" data-log-type="income" type="button">+ Income</button>
+        <button class="flow-seg" data-log-type="expense" type="button">− Expense</button>
+      </div>
+    </div>
+    <div class="log-toolbar-row">
+      <span class="log-toolbar-label">Category</span>
+      <select class="log-cat-select" id="logCatSelect">
+        <option value="">All categories</option>
+        <option value="Housing">🏠 Housing</option>
+        <option value="Mobility">🚗 Mobility</option>
+        <option value="Food &amp; Drink">🍽️ Food &amp; Drink</option>
+        <option value="Subscriptions">📺 Subscriptions</option>
+        <option value="Insurance">🛡️ Insurance</option>
+        <option value="Personal">✨ Personal</option>
+        <option value="Other">📌 Other</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Grouped category breakdown -->
+  <div class="card log-card">
+    <div class="log-cat-list" id="logCatList"></div>
+    <div class="log-empty" id="logCatEmpty" hidden>
+      No activity in this period.
+    </div>
+  </div>
+
+  <!-- Chronological entries -->
+  <div class="card log-card">
+    <div class="log-list-header">
+      <span class="log-list-title">ENTRIES</span>
+      <span class="log-list-count" id="logListCount">0</span>
+    </div>
+    <div class="log-entries" id="logEntries"></div>
+    <div class="log-empty" id="logEntriesEmpty" hidden>
+      Nothing matches these filters.
+    </div>
+  </div>
+</div>
+
 </div>
 
 <!-- ===== BOTTOM TAB BAR ===== -->
@@ -2147,6 +2431,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <button class="bot-tab" data-tab="flow">
     <span class="bot-tab-icon">🌊</span>
     <span class="bot-tab-label">Flow</span>
+  </button>
+  <button class="bot-tab" data-tab="log">
+    <span class="bot-tab-icon">📜</span>
+    <span class="bot-tab-label">Log</span>
   </button>
 </nav>
 
@@ -2209,7 +2497,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   tabs.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
   const savedTab = storeGet(TAB_KEY);
-  setActiveTab(savedTab && ['net','subs','incoming','wish','flow'].includes(savedTab) ? savedTab : 'net');
+  setActiveTab(savedTab && ['net','subs','incoming','wish','flow','log'].includes(savedTab) ? savedTab : 'net');
 
   // ============================================================
   // NET WORTH (copied from the main dashboard, verbatim logic)
@@ -4003,15 +4291,228 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   refreshAllFromSync = function refreshAllFromSyncWithFlow() {
     _origRefreshAll();
     try { renderFlow(); } catch (e) {}
+    try { renderActivityLog(); } catch (e) {}
   };
 
-  // When the Flow tab is clicked, re-render so the SVG is sized to the
-  // section that just became visible.
+  // When the Flow or Log tab is clicked, re-render so it can size itself.
   document.querySelectorAll('.bot-tab').forEach(b => {
     b.addEventListener('click', () => {
       if (b.dataset.tab === 'flow') requestAnimationFrame(renderFlow);
+      if (b.dataset.tab === 'log')  requestAnimationFrame(renderActivityLog);
     });
   });
+
+  // ============================================================
+  // ACTIVITY LOG — chronological income/expense entries from
+  // nw:activity, plus a grouped-by-category breakdown.
+  // ============================================================
+  let _logPeriod = 'month';   // 'month' | 'year' | 'all'
+  let _logType   = 'all';     // 'all' | 'income' | 'expense'
+  let _logCat    = '';        // '' or category name
+  let _logFocusedCat = '';    // category that the user tapped to filter inline
+
+  const CAT_META = {
+    'Housing':       { icon: '🏠', color: '#7B6BE3' },
+    'Mobility':      { icon: '🚗', color: '#7DD3FC' },
+    'Food & Drink':  { icon: '🍽️', color: '#FFB07A' },
+    'Subscriptions': { icon: '📺', color: '#F472B6' },
+    'Insurance':     { icon: '🛡️', color: '#34D399' },
+    'Personal':      { icon: '✨', color: '#F2C063' },
+    'Income':        { icon: '💸', color: '#6BE3A4' },
+    'Other':         { icon: '📌', color: '#B8B6B0' }
+  };
+  function catMeta(name) { return CAT_META[name] || CAT_META['Other']; }
+
+  // Income entries don't carry a category in the modal; bucket them under "Income".
+  function entryCategory(e) {
+    if (e.category) return e.category;
+    if ((e.kind === 'income') || (Number(e.delta) || 0) > 0) return 'Income';
+    return 'Other';
+  }
+  function entryKind(e) {
+    if (e.kind === 'income' || e.kind === 'expense') return e.kind;
+    const d = Number(e.delta) || 0;
+    if (d > 0) return 'income';
+    if (d < 0) return 'expense';
+    return 'other';
+  }
+
+  function periodStartTs() {
+    const now = new Date();
+    if (_logPeriod === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    if (_logPeriod === 'year')  return new Date(now.getFullYear(), 0, 1).getTime();
+    return 0;
+  }
+
+  function getFilteredActivity() {
+    const arr = storeGet('nw:activity') || [];
+    const cutoff = periodStartTs();
+    return arr.filter(e => {
+      if (!e || typeof e.ts !== 'number') return false;
+      if (e.ts < cutoff) return false;
+      const k = entryKind(e);
+      if (k === 'other') return false;
+      if (_logType !== 'all' && k !== _logType) return false;
+      const cat = entryCategory(e);
+      const catFilter = _logFocusedCat || _logCat;
+      if (catFilter && cat !== catFilter) return false;
+      return true;
+    });
+  }
+
+  function fmtSigned(v) {
+    if (v >= 0) return '+' + fmtMoney(v);
+    return '−' + fmtMoney(Math.abs(v));
+  }
+  function fmtEntryWhen(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const sameYear = d.getFullYear() === now.getFullYear();
+    const opts = sameYear
+      ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }
+      : { year: '2-digit', month: 'short', day: 'numeric' };
+    return d.toLocaleString('en-US', opts);
+  }
+
+  function renderActivityLog() {
+    const periodLabelText =
+      _logPeriod === 'month' ? 'this month' :
+      _logPeriod === 'year'  ? 'this year'  : 'all time';
+    const periodLabelEl = document.getElementById('logPeriodLabel');
+    if (periodLabelEl) periodLabelEl.textContent = periodLabelText;
+    document.querySelectorAll('.log-period-mirror').forEach(el => { el.textContent = periodLabelText; });
+
+    const entries = getFilteredActivity().slice().sort((a, b) => b.ts - a.ts);
+
+    let totalIn = 0, totalOut = 0;
+    entries.forEach(e => {
+      const d = Number(e.delta) || 0;
+      if (d >= 0) totalIn += d;
+      else totalOut += Math.abs(d);
+    });
+    const inEl  = document.getElementById('logStatIn');
+    const outEl = document.getElementById('logStatOut');
+    const netEl = document.getElementById('logStatNet');
+    if (inEl)  inEl.textContent  = totalIn  > 0 ? fmtMoney(totalIn)  : '—';
+    if (outEl) outEl.textContent = totalOut > 0 ? fmtMoney(totalOut) : '—';
+    if (netEl) {
+      const net = totalIn - totalOut;
+      if (totalIn > 0 || totalOut > 0) {
+        netEl.textContent = fmtSigned(net);
+        netEl.classList.toggle('is-deficit', net < 0);
+      } else {
+        netEl.textContent = '—';
+        netEl.classList.remove('is-deficit');
+      }
+    }
+
+    // ----- Category breakdown -----
+    const catList = document.getElementById('logCatList');
+    const catEmpty = document.getElementById('logCatEmpty');
+    if (catList) {
+      const byCat = new Map();
+      entries.forEach(e => {
+        const cat = entryCategory(e);
+        const d = Number(e.delta) || 0;
+        const bucket = byCat.get(cat) || { cat, totalIn: 0, totalOut: 0 };
+        if (d >= 0) bucket.totalIn += d;
+        else        bucket.totalOut += Math.abs(d);
+        byCat.set(cat, bucket);
+      });
+      const cats = [...byCat.values()].sort((a, b) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
+      const maxAbs = cats.reduce((m, c) => Math.max(m, c.totalIn + c.totalOut), 0) || 1;
+
+      catList.innerHTML = '';
+      if (cats.length === 0) {
+        catEmpty.hidden = false;
+      } else {
+        catEmpty.hidden = true;
+        cats.forEach(c => {
+          const meta = catMeta(c.cat);
+          const isIncome = c.totalIn > c.totalOut;
+          const total = c.totalIn + c.totalOut;
+          const pct = Math.round(total / maxAbs * 100);
+          const row = document.createElement('div');
+          row.className = 'log-cat-row' + (_logFocusedCat === c.cat ? ' is-focused' : '');
+          row.innerHTML =
+            '<div class="log-cat-row-head">' +
+              '<span class="log-cat-icon" style="background:' + meta.color + '22">' + meta.icon + '</span>' +
+              '<span class="log-cat-name">' + escapeHtml(c.cat) + '</span>' +
+              '<span class="log-cat-amt ' + (isIncome ? 'is-in' : 'is-out') + '">' +
+                (isIncome ? '+' : '−') + fmtMoney(isIncome ? c.totalIn : c.totalOut) +
+              '</span>' +
+              '<span class="log-cat-pct">' + pct + '%</span>' +
+            '</div>' +
+            '<div class="log-cat-bar" style="width:' + pct + '%;background:' + meta.color + '"></div>';
+          row.addEventListener('click', () => {
+            _logFocusedCat = (_logFocusedCat === c.cat) ? '' : c.cat;
+            renderActivityLog();
+          });
+          catList.appendChild(row);
+        });
+      }
+    }
+
+    // ----- Chronological entries -----
+    const entriesEl = document.getElementById('logEntries');
+    const entriesEmpty = document.getElementById('logEntriesEmpty');
+    const countEl = document.getElementById('logListCount');
+    if (countEl) countEl.textContent = String(entries.length);
+    if (entriesEl) {
+      entriesEl.innerHTML = '';
+      if (entries.length === 0) {
+        entriesEmpty.hidden = false;
+      } else {
+        entriesEmpty.hidden = true;
+        entries.slice(0, 200).forEach(e => {
+          const k = entryKind(e);
+          const cat = entryCategory(e);
+          const meta = catMeta(cat);
+          const isIn = k === 'income';
+          const row = document.createElement('div');
+          row.className = 'log-entry';
+          row.innerHTML =
+            '<span class="log-entry-when">' + escapeHtml(fmtEntryWhen(e.ts)) + '</span>' +
+            '<div class="log-entry-main">' +
+              '<span class="log-entry-dot" style="background:' + meta.color + '"></span>' +
+              '<div class="log-entry-meta">' +
+                '<div class="log-entry-name">' + escapeHtml(e.name || '(unnamed)') + '</div>' +
+                '<div class="log-entry-cat">' + meta.icon + ' ' + escapeHtml(cat) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<span class="log-entry-amt ' + (isIn ? 'is-in' : 'is-out') + '">' + fmtSigned(Number(e.delta) || 0) + '</span>';
+          entriesEl.appendChild(row);
+        });
+      }
+    }
+  }
+
+  // Wire log toolbar buttons + select
+  document.querySelectorAll('[data-log-period]').forEach(b => {
+    b.addEventListener('click', () => {
+      _logPeriod = b.getAttribute('data-log-period');
+      document.querySelectorAll('[data-log-period]').forEach(x => x.classList.toggle('active', x === b));
+      renderActivityLog();
+    });
+  });
+  document.querySelectorAll('[data-log-type]').forEach(b => {
+    b.addEventListener('click', () => {
+      _logType = b.getAttribute('data-log-type');
+      document.querySelectorAll('[data-log-type]').forEach(x => x.classList.toggle('active', x === b));
+      renderActivityLog();
+    });
+  });
+  const logCatSel = document.getElementById('logCatSelect');
+  if (logCatSel) {
+    logCatSel.addEventListener('change', () => {
+      _logCat = logCatSel.value || '';
+      _logFocusedCat = '';
+      renderActivityLog();
+    });
+  }
+
+  // Warm-render so stats are ready when the user taps the tab
+  try { renderActivityLog(); } catch (e) {}
 
   // Resize: redraw flow when window changes width
   let _flowResizeTimer = null;

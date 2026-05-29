@@ -348,6 +348,46 @@ body.has-bottombar {
 }
 .inc-modal-btn.save:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .inc-modal-btn.save:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
+.inc-modal[data-kind="expense"] .inc-modal-btn.save {
+  background: linear-gradient(180deg, #FCA5A5 0%, #F87171 100%);
+  color: #4A1414;
+  box-shadow: 0 8px 22px rgba(248, 113, 113, 0.30);
+}
+/* Income/Expense segmented toggle */
+.inc-modal-kind {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.inc-modal-kind button {
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  padding: 9px 8px;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 0.18s, color 0.18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.inc-modal-kind button:hover { color: #FAFAFA; }
+.inc-modal[data-kind="income"]  .inc-modal-kind .kind-income  { background: rgba(110,231,183,0.18); color: #6EE7B7; }
+.inc-modal[data-kind="expense"] .inc-modal-kind .kind-expense { background: rgba(248,113,113,0.18); color: #FCA5A5; }
+.inc-modal-row.is-expense-only { display: none; }
+.inc-modal[data-kind="expense"] .inc-modal-row.is-expense-only { display: flex; }
+.inc-modal[data-kind="income"] .inc-modal-title-prefix::before { content: '💸 Add income'; }
+.inc-modal[data-kind="expense"] .inc-modal-title-prefix::before { content: '🧾 Add expense'; }
+.inc-modal[data-kind="income"]  .inc-modal-sub::before { content: 'Adds to the chosen account and logs it.'; }
+.inc-modal[data-kind="expense"] .inc-modal-sub::before { content: 'Deducts from the chosen account and logs it under a category.'; }
 .inc-modal-status {
   font-size: 11px;
   color: rgba(255,255,255,0.5);
@@ -430,21 +470,37 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 
   const incomeModalHtml = `
 <div class="inc-modal-bg" id="incModalBg" role="dialog" aria-modal="true" aria-labelledby="incModalTitle">
-  <div class="inc-modal">
+  <div class="inc-modal" id="incModal" data-kind="income">
     <button class="inc-modal-close" id="incModalClose" aria-label="Close">×</button>
-    <h2 class="inc-modal-title" id="incModalTitle">💸 Add income</h2>
-    <p class="inc-modal-sub">Bumps the chosen account and logs it in your activity.</p>
+    <h2 class="inc-modal-title" id="incModalTitle"><span class="inc-modal-title-prefix"></span></h2>
+    <p class="inc-modal-sub"></p>
+    <div class="inc-modal-kind" role="tablist" aria-label="Transaction type">
+      <button type="button" class="kind-income"  data-kind="income"  role="tab">+ Income</button>
+      <button type="button" class="kind-expense" data-kind="expense" role="tab">− Expense</button>
+    </div>
     <div class="inc-modal-row">
       <label class="inc-modal-label" for="incAmount">Amount</label>
       <input class="inc-modal-input amount" id="incAmount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
     </div>
     <div class="inc-modal-row">
-      <label class="inc-modal-label" for="incAccount">Into account</label>
+      <label class="inc-modal-label" for="incAccount"><span id="incAccountLabel">Into account</span></label>
       <select class="inc-modal-select" id="incAccount"></select>
+    </div>
+    <div class="inc-modal-row is-expense-only">
+      <label class="inc-modal-label" for="incCategory">Category</label>
+      <select class="inc-modal-select" id="incCategory">
+        <option value="Housing">🏠 Housing</option>
+        <option value="Mobility">🚗 Mobility</option>
+        <option value="Food & Drink">🍽️ Food &amp; Drink</option>
+        <option value="Subscriptions">📺 Subscriptions</option>
+        <option value="Insurance">🛡️ Insurance</option>
+        <option value="Personal">✨ Personal</option>
+        <option value="Other" selected>📌 Other</option>
+      </select>
     </div>
     <div class="inc-modal-row">
       <label class="inc-modal-label" for="incNote">Note (optional)</label>
-      <input class="inc-modal-input" id="incNote" type="text" placeholder="e.g. Salary, freelance, …" />
+      <input class="inc-modal-input" id="incNote" type="text" placeholder="e.g. Salary, Migros, freelance, …" />
     </div>
     <div class="inc-modal-actions">
       <button class="inc-modal-btn cancel" id="incModalCancel" type="button">Cancel</button>
@@ -608,17 +664,23 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   function bankSetAccounts(arr) {
     try { localStorage.setItem('nw:bank', JSON.stringify(arr)); } catch (e) {}
   }
-  function logFinanceActivity(catKey, name, deltaCHF, kind) {
+  function logFinanceActivity(catKey, name, deltaCHF, kind, category) {
     const ACT_KEY = 'nw:activity';
     let arr = [];
     try { arr = JSON.parse(localStorage.getItem(ACT_KEY)) || []; } catch (e) {}
     if (!Array.isArray(arr)) arr = [];
-    arr.push({ ts: Date.now(), cat: catKey, name: String(name || ''), delta: Number(deltaCHF) || 0, kind: kind || 'add' });
-    if (arr.length > 200) arr.splice(0, arr.length - 200);
+    const entry = {
+      ts: Date.now(),
+      cat: catKey,             // legacy: source NW category (bank, stocks…)
+      name: String(name || ''),
+      delta: Number(deltaCHF) || 0,
+      kind: kind || 'add'      // 'income' | 'expense' | 'add' | 'delete' | …
+    };
+    if (category) entry.category = String(category);
+    arr.push(entry);
+    if (arr.length > 500) arr.splice(0, arr.length - 500);
     try { localStorage.setItem(ACT_KEY, JSON.stringify(arr)); } catch (e) {}
   }
-  // Income writes go through localStorage; the global sync (see below) picks
-  // them up via the Storage.setItem patch and debounces a push to Supabase.
 
   function populateAccountSelect(selectEl, preferredName) {
     const accounts = getBankAccounts();
@@ -641,17 +703,36 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     }
   }
 
+  function setModalKind(kind) {
+    const modal = document.getElementById('incModal');
+    if (!modal) return;
+    modal.setAttribute('data-kind', kind === 'expense' ? 'expense' : 'income');
+    const saveBtn = document.getElementById('incModalSave');
+    if (saveBtn) saveBtn.textContent = (kind === 'expense') ? 'Subtract' : 'Add';
+    const lbl = document.getElementById('incAccountLabel');
+    if (lbl) lbl.textContent = (kind === 'expense') ? 'From account' : 'Into account';
+  }
+
   function openIncomeModal(preset) {
     const bg = document.getElementById('incModalBg');
     if (!bg) return;
+    preset = preset || {};
     const amountEl = document.getElementById('incAmount');
     const accountEl = document.getElementById('incAccount');
     const noteEl = document.getElementById('incNote');
+    const catEl = document.getElementById('incCategory');
     const statusEl = document.getElementById('incModalStatus');
-    populateAccountSelect(accountEl, preset && preset.account);
-    amountEl.value = preset && preset.amount ? String(preset.amount) : '';
-    noteEl.value = preset && preset.note ? String(preset.note) : '';
+    populateAccountSelect(accountEl, preset.account);
+    amountEl.value = preset.amount ? String(preset.amount) : '';
+    noteEl.value = preset.note ? String(preset.note) : '';
+    if (catEl && preset.category) {
+      const match = Array.from(catEl.options).find(o => o.value.toLowerCase() === String(preset.category).toLowerCase());
+      catEl.value = match ? match.value : 'Other';
+    } else if (catEl) {
+      catEl.value = 'Other';
+    }
     statusEl.textContent = ''; statusEl.classList.remove('error','ok');
+    setModalKind(preset.kind || 'income');
     bg.classList.add('show');
     setTimeout(() => amountEl.focus(), 60);
   }
@@ -661,7 +742,8 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     bg.classList.remove('show');
   }
 
-  function applyIncome(amount, accountName, note) {
+  // kind: 'income' | 'expense'
+  function applyTransaction(kind, amount, accountName, note, category) {
     amount = Number(amount) || 0;
     if (amount <= 0) return { ok: false, error: 'Enter a positive amount.' };
     let accounts = getBankAccounts();
@@ -678,12 +760,19 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     } else {
       acct = accounts[0];
     }
-    acct.amount = (Number(acct.amount) || 0) + amount;
+    const sign = (kind === 'expense') ? -1 : 1;
+    acct.amount = (Number(acct.amount) || 0) + (sign * amount);
     bankSetAccounts(accounts);
-    logFinanceActivity('bank', acct.name + (note ? ' · ' + note : ''), amount, 'income');
+    const displayName = acct.name + (note ? ' · ' + note : '');
+    const cat = (kind === 'expense' ? (category || 'Other') : null);
+    logFinanceActivity('bank', displayName, sign * amount, kind, cat);
     if (window.hecSync) window.hecSync.pushBucket('finance');
     try { window.dispatchEvent(new StorageEvent('storage', { key: 'nw:bank' })); } catch (e) {}
-    return { ok: true, account: acct.name, amount };
+    return { ok: true, account: acct.name, amount, kind, category: cat };
+  }
+  // Back-compat: any external caller still using applyIncome works.
+  function applyIncome(amount, accountName, note) {
+    return applyTransaction('income', amount, accountName, note, null);
   }
 
   function wireIncomeModal() {
@@ -698,11 +787,18 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && bg && bg.classList.contains('show')) closeIncomeModal();
     });
+    // Income / Expense toggle buttons.
+    document.querySelectorAll('.inc-modal-kind button').forEach(btn => {
+      btn.addEventListener('click', () => setModalKind(btn.getAttribute('data-kind')));
+    });
     const saveBtn = document.getElementById('incModalSave');
     if (saveBtn) saveBtn.addEventListener('click', () => {
+      const modal = document.getElementById('incModal');
+      const kind = (modal && modal.getAttribute('data-kind')) === 'expense' ? 'expense' : 'income';
       const amount = parseFloat(document.getElementById('incAmount').value);
       const selectEl = document.getElementById('incAccount');
       const note = document.getElementById('incNote').value.trim();
+      const category = document.getElementById('incCategory').value || 'Other';
       const statusEl = document.getElementById('incModalStatus');
       statusEl.classList.remove('error','ok');
       let accountName = null;
@@ -710,13 +806,15 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       const sel = selectEl.value;
       if (sel === '__new__' || accounts.length === 0) accountName = 'Bank';
       else { const idx = parseInt(sel, 10); if (!isNaN(idx) && accounts[idx]) accountName = accounts[idx].name; }
-      const r = applyIncome(amount, accountName, note);
+      const r = applyTransaction(kind, amount, accountName, note, category);
       if (!r.ok) {
         statusEl.textContent = r.error;
         statusEl.classList.add('error');
         return;
       }
-      statusEl.textContent = 'Added ' + r.amount + ' to ' + r.account + ' ✓';
+      const verb = kind === 'expense' ? 'Spent' : 'Added';
+      const dir  = kind === 'expense' ? 'from' : 'to';
+      statusEl.textContent = verb + ' ' + r.amount + ' ' + dir + ' ' + r.account + (r.category ? ' · ' + r.category : '') + ' ✓';
       statusEl.classList.add('ok');
       const flashBtn = document.getElementById('topbarIncome');
       if (flashBtn) { flashBtn.classList.add('flash'); setTimeout(() => flashBtn.classList.remove('flash'), 360); }
@@ -730,22 +828,25 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   function handleIncomeUrlParam() {
     try {
       const sp = new URLSearchParams(window.location.search);
-      const raw = sp.get('addIncome') || sp.get('income');
+      // addExpense takes priority over addIncome if both are present.
+      const expenseRaw = sp.get('addExpense') || sp.get('expense');
+      const incomeRaw  = sp.get('addIncome')  || sp.get('income');
+      const raw = expenseRaw || incomeRaw;
       if (!raw) return;
+      const kind = expenseRaw ? 'expense' : 'income';
       const amount = parseFloat(raw);
       if (isNaN(amount) || amount <= 0) return;
       const note = sp.get('note') || '';
       const account = sp.get('account') || null;
+      const category = sp.get('category') || null;
       const auto = sp.get('auto') === '1' || sp.get('silent') === '1';
       if (auto) {
-        const r = applyIncome(amount, account, note);
-        // strip the params from URL so reloads don't double-add
+        const r = applyTransaction(kind, amount, account, note, category);
         const clean = window.location.pathname + window.location.hash;
         window.history.replaceState({}, document.title, clean);
         return r;
       }
-      // open prefilled modal
-      openIncomeModal({ amount, note, account });
+      openIncomeModal({ kind, amount, note, account, category });
       const clean = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, clean);
     } catch (e) {}

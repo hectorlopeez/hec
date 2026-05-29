@@ -563,6 +563,22 @@ body::after {
   padding: 14px 0;
 }
 
+.gm-done-divider {
+  list-style: none;
+  display: flex; align-items: center;
+  gap: 10px;
+  margin: 14px 4px 8px;
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.20em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.gm-done-divider span { flex: 0 0 auto; }
+.gm-done-divider::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.10), transparent);
+}
+
 .gm-row {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 14px;
@@ -593,6 +609,16 @@ body::after {
   0%   { background: rgba(255,255,255,0.035); transform: scale(1); }
   40%  { background: rgba(242,192,99,0.32); transform: scale(1.015); }
   100% { background: rgba(255,255,255,0.035); transform: scale(1); }
+}
+/* When the user checks a task, slide it down + fade so the eye follows
+   it toward the DONE section before the list re-renders. */
+.gm-row.is-completing {
+  animation: gm-row-complete 0.32s cubic-bezier(0.55, 0, 0.55, 1) forwards;
+  pointer-events: none;
+}
+@keyframes gm-row-complete {
+  0%   { opacity: 1;    transform: translateY(0);     background: rgba(107,227,164,0.18); }
+  100% { opacity: 0;    transform: translateY(28px);  background: rgba(107,227,164,0.04); }
 }
 
 .gm-handle {
@@ -1263,7 +1289,15 @@ body::after {
       if (cb.checked) list[idx].doneAt = Date.now();
       else delete list[idx].doneAt;
       setGoals(key, list);
-      reload();
+      // When checking off, animate the row sliding down before re-render
+      // so the user sees the item "fall" toward the done section. When
+      // un-checking, just re-render — no need for an animation.
+      if (cb.checked && !readOnly) {
+        li.classList.add('is-completing');
+        setTimeout(() => reload(), 320);
+      } else {
+        reload();
+      }
     });
     li.appendChild(cb);
 
@@ -1354,32 +1388,22 @@ body::after {
     emptyEl.style.display = goals.length === 0 ? 'block' : 'none';
     const reload = () => (key === todayKey() ? loadToday() : loadTomorrow());
 
-    const visible = goals.length > 5 ? goals.slice(0, 5) : goals;
-    visible.forEach((g, i) => listEl.appendChild(buildGoalRow(g, i, key, readOnly, reload)));
+    // Sort: pending first (in original order), then done. Original index
+    // is preserved on the row so checkbox/edit/delete/drag still mutate
+    // the correct array slot.
+    const indexed = goals.map((g, i) => ({ g, i }));
+    const pending = indexed.filter(x => !x.g.done);
+    const done    = indexed.filter(x =>  x.g.done);
 
-    if (goals.length > 5) {
-      let expanded = false;
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'gm-show-toggle';
-      const updateLabel = () => {
-        toggle.textContent = expanded ? 'Show less ▴' : ('Show ' + (goals.length - 5) + ' more ▾');
-      };
-      updateLabel();
-      toggle.addEventListener('click', () => {
-        expanded = !expanded;
-        if (expanded) {
-          goals.slice(5).forEach((g, i) => {
-            const row = buildGoalRow(g, i + 5, key, readOnly, reload);
-            listEl.insertBefore(row, toggle);
-          });
-        } else {
-          Array.from(listEl.querySelectorAll('.gm-row')).slice(5).forEach(r => r.remove());
-        }
-        updateLabel();
-      });
-      listEl.appendChild(toggle);
+    pending.forEach(({ g, i }) => listEl.appendChild(buildGoalRow(g, i, key, readOnly, reload)));
+
+    if (done.length > 0 && pending.length > 0) {
+      const divider = document.createElement('li');
+      divider.className = 'gm-done-divider';
+      divider.innerHTML = '<span>DONE · ' + done.length + '</span>';
+      listEl.appendChild(divider);
     }
+    done.forEach(({ g, i }) => listEl.appendChild(buildGoalRow(g, i, key, readOnly, reload)));
 
     if (key === todayKey()) renderTodayHeader();
     else                    renderTomorrowCount();
