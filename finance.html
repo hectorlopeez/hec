@@ -73,9 +73,12 @@ body::after {
 }
 
 .shell {
-  max-width: 880px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 24px 16px 100px;   /* extra bottom padding so tab bar doesn't cover content */
+  padding: 24px 20px 100px;   /* extra bottom padding so tab bar doesn't cover content */
+}
+@media (min-width: 1100px) {
+  .shell { padding: 32px 36px 120px; }
 }
 
 /* ===== Back to dashboard ===== */
@@ -1909,15 +1912,39 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .log-entry {
   display: grid;
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: 64px 1fr auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 10px;
   background: rgba(255,255,255,0.02);
   border-radius: 10px;
   transition: background 0.15s;
+  position: relative;
 }
 .log-entry:hover { background: rgba(255,255,255,0.05); }
+.log-entry-del {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 18px;
+  line-height: 1;
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s, background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.log-entry:hover .log-entry-del,
+.log-entry:focus-within .log-entry-del { opacity: 0.7; }
+.log-entry-del:hover {
+  opacity: 1 !important;
+  background: rgba(255,107,107,0.16);
+  color: #FF6B6B;
+}
+@keyframes log-entry-out {
+  to { opacity: 0; transform: translateX(20px); height: 0; padding: 0; margin: 0; }
+}
 .log-entry-when {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 10.5px;
@@ -1973,10 +2000,139 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .log-hero-stats { gap: 10px; }
   .log-stat-val { font-size: 15px; }
   .log-toolbar-label { min-width: 0; flex-basis: 100%; margin-bottom: 4px; }
-  .log-entry { grid-template-columns: 56px 1fr auto; gap: 8px; padding: 9px; }
+  .log-entry { grid-template-columns: 56px 1fr auto auto; gap: 6px; padding: 9px; }
   .log-entry-when { font-size: 9.5px; }
   .log-entry-name { font-size: 12.5px; }
   .log-entry-amt { font-size: 12.5px; }
+  .log-entry-del { opacity: 0.5; }
+}
+
+/* ===== Desktop layout ===== */
+@media (min-width: 1100px) {
+  /* Net Worth: hero + activity side-by-side */
+  [data-section="net"] .nw-hero-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  [data-section="net"] .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Flow takes full width and gets taller */
+  .flow-svg-wrap { min-height: 480px; padding: 18px 14px 22px; }
+  .flow-stat-val { font-size: 20px; }
+
+  /* Log: 3-column hero, then a 2-column grid for breakdown + entries */
+  .log-hero-stats { gap: 32px; }
+  .log-stat-val { font-size: 24px; }
+  [data-section="log"] .log-grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  [data-section="log"] .log-grid .log-card { margin-bottom: 0; }
+  .log-entries { max-height: 720px; }
+
+  /* Subs section: 2 columns */
+  [data-section="subs"] .quick-add { padding-bottom: 14px; }
+  [data-section="subs"] .sub-list-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+/* ===== 21st.dev-style polish ===== */
+
+/* Animated shine border that sweeps across the card on hover */
+.card {
+  position: relative;
+}
+.card::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255,255,255,0.25) 50%,
+    transparent 65%,
+    transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.card:hover::after { opacity: 1; animation: card-shine-sweep 1.6s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes card-shine-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card::after, .card:hover::after { animation: none; opacity: 0; }
+}
+
+/* Soft lift on hover for clickable rows (log entries, cat rows) */
+.log-entry, .log-cat-row {
+  transform: translateY(0);
+}
+.log-entry:hover { transform: translateY(-1px); }
+.log-cat-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,0.25); }
+
+/* Numbers that count up when they change (driven by JS).
+   Use a CSS-vars + tabular-nums approach so the layout stays steady. */
+.log-stat-val, .flow-stat-val {
+  font-variant-numeric: tabular-nums;
+  will-change: contents;
+}
+.tick-up {
+  animation: tick-up 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes tick-up {
+  0%   { transform: translateY(6px); opacity: 0.4; }
+  100% { transform: translateY(0);   opacity: 1;   }
+}
+
+/* Spotlight aurora behind the Flow hero */
+.flow-hero {
+  position: relative;
+  overflow: hidden;
+}
+@property --flow-aurora-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.flow-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  z-index: 0;
+  background: conic-gradient(
+    from var(--flow-aurora-angle, 0deg) at 70% 50%,
+    rgba(125,211,252,0.0) 0deg,
+    rgba(125,211,252,0.18) 80deg,
+    rgba(244,114,182,0.18) 200deg,
+    rgba(107,227,164,0.18) 300deg,
+    rgba(125,211,252,0.0) 360deg
+  );
+  filter: blur(50px);
+  opacity: 0.7;
+  animation: flow-aurora-spin 22s linear infinite;
+  pointer-events: none;
+}
+.flow-hero > * { position: relative; z-index: 1; }
+@keyframes flow-aurora-spin {
+  to { --flow-aurora-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-hero::before { animation: none; opacity: 0.4; }
 }
 </style>
 </head>
@@ -2387,23 +2543,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     </div>
   </div>
 
-  <!-- Grouped category breakdown -->
-  <div class="card log-card">
-    <div class="log-cat-list" id="logCatList"></div>
-    <div class="log-empty" id="logCatEmpty" hidden>
-      No activity in this period.
+  <!-- 2-column grid on desktop: breakdown on the left, chronological entries on the right -->
+  <div class="log-grid">
+    <!-- Grouped category breakdown -->
+    <div class="card log-card">
+      <div class="log-list-header">
+        <span class="log-list-title">BY CATEGORY</span>
+      </div>
+      <div class="log-cat-list" id="logCatList"></div>
+      <div class="log-empty" id="logCatEmpty" hidden>
+        No activity in this period.
+      </div>
     </div>
-  </div>
 
-  <!-- Chronological entries -->
-  <div class="card log-card">
-    <div class="log-list-header">
-      <span class="log-list-title">ENTRIES</span>
-      <span class="log-list-count" id="logListCount">0</span>
-    </div>
-    <div class="log-entries" id="logEntries"></div>
-    <div class="log-empty" id="logEntriesEmpty" hidden>
-      Nothing matches these filters.
+    <!-- Chronological entries -->
+    <div class="card log-card">
+      <div class="log-list-header">
+        <span class="log-list-title">ENTRIES</span>
+        <span class="log-list-count" id="logListCount">0</span>
+      </div>
+      <div class="log-entries" id="logEntries"></div>
+      <div class="log-empty" id="logEntriesEmpty" hidden>
+        Nothing matches these filters.
+      </div>
     </div>
   </div>
 </div>
@@ -2452,13 +2614,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       k === 'incoming_orders' || k === 'nw_currency'
     );
   }
+  function fireFinanceChange(key) {
+    // Same-tab writes don't trigger the storage event — fire our own so
+    // Flow + Log re-render the instant subs / activity change.
+    try { window.dispatchEvent(new CustomEvent('finance-changed', { detail: { key } })); } catch (e) {}
+  }
   function storeSet(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
-    if (window.hecSync && isFinanceKey(key)) window.hecSync.pushBucket('finance');
+    if (isFinanceKey(key)) {
+      if (window.hecSync) window.hecSync.pushBucket('finance');
+      fireFinanceChange(key);
+    }
   }
   function storeDelete(key) {
     try { localStorage.removeItem(key); } catch (e) {}
-    if (window.hecSync && isFinanceKey(key)) window.hecSync.pushBucket('finance');
+    if (isFinanceKey(key)) {
+      if (window.hecSync) window.hecSync.pushBucket('finance');
+      fireFinanceChange(key);
+    }
   }
 
   // ============================================================
@@ -3939,12 +4112,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   // SPENDING FLOW — vanilla SVG Sankey from subs ↔ categories.
   // ============================================================
   const FLOW_CAT_RULES = [
-    { cat: 'Housing',       color: '#7B6BE3', kws: ['rent','alquiler','hipoteca','mortgage','wifi','internet','electric','luz','gas','water','agua','strom','utilit','council','hoa'] },
-    { cat: 'Mobility',      color: '#7DD3FC', kws: ['fuel','gasolina','combust','train','bahn','transport','parking','uber','metro','bus','tram','car','tax','peaje','toll','sbb'] },
-    { cat: 'Food & Drink',  color: '#FFB07A', kws: ['food','grocer','supermarket','lidl','aldi','mercadona','migros','coop','restaur','eat','glovo','rappi','deliveroo','starbucks','cafe','bar','snack'] },
-    { cat: 'Subscriptions', color: '#F472B6', kws: ['netflix','spotify','prime','youtube','disney','hbo','apple','icloud','gpt','chatgpt','claude','openai','linear','figma','adobe','dropbox','notion','github','vercel','aws','google','cursor'] },
-    { cat: 'Insurance',     color: '#34D399', kws: ['insurance','seguro','versicherung','medical','health','sanitas','axa','generali'] },
-    { cat: 'Personal',      color: '#F2C063', kws: ['gym','fitness','barber','peluqu','clothes','ropa','shopping','amazon','beauty','spa'] },
+    { cat: 'Housing',       color: '#7B6BE3', kws: ['rent','alquiler','hipoteca','mortgage','wifi','internet','electric','luz','gas','water','agua','strom','utilit','council','hoa','vodafone','movistar','orange','swisscom','salt','sunrise'] },
+    { cat: 'Mobility',      color: '#7DD3FC', kws: ['fuel','gasolina','combust','train','bahn','transport','parking','uber','metro','bus','tram','car','tax','peaje','toll','sbb','renfe','iberia','flight','avion','airline'] },
+    { cat: 'Food & Drink',  color: '#FFB07A', kws: ['food','grocer','supermarket','lidl','aldi','mercadona','migros','coop','restaur','eat','glovo','rappi','deliveroo','starbucks','cafe','bar','snack','pizza','sushi','kebab','mcdonald','burger','kfc'] },
+    { cat: 'Subscriptions', color: '#F472B6', kws: ['netflix','spotify','prime','youtube','disney','hbo','apple','icloud','gpt','chatgpt','claude','openai','linear','figma','adobe','dropbox','notion','github','vercel','aws','google','cursor','drive','storage','cloud','onedrive','mega','backup','pcloud','tresorit','backblaze','sync.com','box.com','obsidian','raycast','tldraw','grammarly','1password','protonmail','fastmail','soundcloud','tidal','strava','duolingo','medium','substack','patreon'] },
+    { cat: 'Insurance',     color: '#34D399', kws: ['insurance','seguro','versicherung','medical','health','sanitas','axa','generali','helsana','css','swica','assura'] },
+    { cat: 'Personal',      color: '#F2C063', kws: ['gym','fitness','barber','peluqu','clothes','ropa','shopping','amazon','beauty','spa','zalando','nike','adidas','zara','hm','massimo','decathlon'] },
     { cat: 'Other',         color: '#B8B6B0', kws: [] }
   ];
   function classifyFlowCategory(it) {
@@ -4061,14 +4234,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     const inTotal  = inTotalRaw;
     const leftover = inTotal - outTotal;
 
-    document.getElementById('flowStatIn').textContent  = inTotal  > 0 ? fmtFlow(inTotal)  : '—';
-    document.getElementById('flowStatOut').textContent = outTotal > 0 ? fmtFlow(outTotal) : '—';
+    animateCounter(document.getElementById('flowStatIn'),  inTotal,  inTotal  > 0 ? fmtFlow : null, '—');
+    animateCounter(document.getElementById('flowStatOut'), outTotal, outTotal > 0 ? fmtFlow : null, '—');
     const leftEl = document.getElementById('flowStatLeft');
     if (inTotal > 0 && outTotal > 0) {
-      leftEl.textContent = (leftover >= 0 ? '+' : '−') + fmtFlow(Math.abs(leftover));
+      animateCounter(leftEl, leftover, (v) => (v >= 0 ? '+' : '−') + fmtFlow(Math.abs(v)), '—');
       leftEl.classList.toggle('is-deficit', leftover < 0);
     } else {
-      leftEl.textContent = '—';
+      animateCounter(leftEl, 0, null, '—');
       leftEl.classList.remove('is-deficit');
     }
 
@@ -4424,6 +4597,45 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     return d.toLocaleString('en-US', opts);
   }
 
+  // ----- Animated counter for stat values -----
+  // Eases from the previously-shown number to the new target over ~520ms.
+  // If `formatter` is falsy, the helper writes `emptyLabel` instead — that
+  // way callers can collapse the "zero ⇒ —" branch in a single call.
+  function animateCounter(el, target, formatter, emptyLabel) {
+    if (!el) return;
+    if (!formatter) {
+      el.textContent = emptyLabel || '—';
+      delete el.dataset.countValue;
+      return;
+    }
+    const start = Number(el.dataset.countValue) || 0;
+    const end = Number(target) || 0;
+    if (start === end) {
+      el.textContent = formatter(end);
+      el.dataset.countValue = String(end);
+      return;
+    }
+    const dur = 520;
+    const t0 = performance.now();
+    if (el._counterRaf) cancelAnimationFrame(el._counterRaf);
+    function step(now) {
+      const k = Math.min(1, (now - t0) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      const v = start + (end - start) * eased;
+      el.textContent = formatter(v);
+      if (k < 1) {
+        el._counterRaf = requestAnimationFrame(step);
+      } else {
+        el.dataset.countValue = String(end);
+        el._counterRaf = null;
+      }
+    }
+    el._counterRaf = requestAnimationFrame(step);
+    el.classList.remove('tick-up');
+    void el.offsetWidth; // restart the keyframes
+    el.classList.add('tick-up');
+  }
+
   function renderActivityLog() {
     const periodLabelText =
       _logPeriod === 'month' ? 'this month' :
@@ -4443,12 +4655,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     const inEl  = document.getElementById('logStatIn');
     const outEl = document.getElementById('logStatOut');
     const netEl = document.getElementById('logStatNet');
-    if (inEl)  inEl.textContent  = totalIn  > 0 ? fmtMoney(totalIn)  : '—';
-    if (outEl) outEl.textContent = totalOut > 0 ? fmtMoney(totalOut) : '—';
+    if (inEl)  animateCounter(inEl,  totalIn,  totalIn  > 0 ? fmtMoney : null, '—');
+    if (outEl) animateCounter(outEl, totalOut, totalOut > 0 ? fmtMoney : null, '—');
     if (netEl) {
       const net = totalIn - totalOut;
       if (totalIn > 0 || totalOut > 0) {
-        netEl.textContent = fmtSigned(net);
+        animateCounter(netEl, net, (v) => fmtSigned(v), '—');
         netEl.classList.toggle('is-deficit', net < 0);
       } else {
         netEl.textContent = '—';
@@ -4521,6 +4733,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           const isIn = k === 'income';
           const row = document.createElement('div');
           row.className = 'log-entry';
+          row.dataset.ts = String(e.ts);
           row.innerHTML =
             '<span class="log-entry-when">' + escapeHtml(fmtEntryWhen(e.ts)) + '</span>' +
             '<div class="log-entry-main">' +
@@ -4530,7 +4743,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
                 '<div class="log-entry-cat">' + meta.icon + ' ' + escapeHtml(cat) + '</div>' +
               '</div>' +
             '</div>' +
-            '<span class="log-entry-amt ' + (isIn ? 'is-in' : 'is-out') + '">' + fmtSigned(Number(e.delta) || 0) + '</span>';
+            '<span class="log-entry-amt ' + (isIn ? 'is-in' : 'is-out') + '">' + fmtSigned(Number(e.delta) || 0) + '</span>' +
+            '<button class="log-entry-del" type="button" aria-label="Delete entry" title="Delete entry">×</button>';
+          row.querySelector('.log-entry-del').addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const ts = Number(row.dataset.ts);
+            if (!confirm('Delete this entry from the log?\n\nThis only removes the log row — it does NOT undo the change to the account balance. Adjust the account directly on the Net Worth tab if needed.')) return;
+            const all = storeGet(ACTIVITY_KEY) || [];
+            const next = all.filter(x => x.ts !== ts);
+            storeSet(ACTIVITY_KEY, next);
+            row.style.animation = 'log-entry-out 0.28s ease forwards';
+            setTimeout(renderActivityLog, 250);
+          });
           entriesEl.appendChild(row);
         });
       }
@@ -4561,8 +4785,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     });
   }
 
-  // Warm-render so stats are ready when the user taps the tab
-  try { renderActivityLog(); } catch (e) {}
+  // Warm-render so stats are ready when the user taps the tab. Errors
+  // here used to be swallowed silently — log them now so problems are
+  // visible in Safari Web Inspector.
+  try { renderActivityLog(); } catch (e) { console.error('[Log] initial render failed:', e); }
+
+  // Re-render Flow + Log the moment subs / activity / accounts change.
+  // Storage events only fire across tabs; the finance-changed event
+  // covers same-tab writes.
+  window.addEventListener('finance-changed', () => {
+    try { renderFlow(); } catch (e) { console.error('[Flow] render failed:', e); }
+    try { renderActivityLog(); } catch (e) { console.error('[Log] render failed:', e); }
+  });
 
   // Resize: redraw flow when window changes width
   let _flowResizeTimer = null;

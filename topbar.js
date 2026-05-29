@@ -739,6 +739,11 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     arr.push(entry);
     if (arr.length > 500) arr.splice(0, arr.length - 500);
     try { localStorage.setItem(ACT_KEY, JSON.stringify(arr)); } catch (e) {}
+    // Tell same-tab listeners (e.g. finance.html's Flow + Log) that
+    // activity changed, and fire a fake storage event so cross-page
+    // listeners pick it up too.
+    try { window.dispatchEvent(new CustomEvent('finance-changed', { detail: { key: ACT_KEY }})); } catch (e) {}
+    try { window.dispatchEvent(new StorageEvent('storage', { key: ACT_KEY })); } catch (e) {}
   }
 
   function populateAccountSelect(selectEl, preferredName) {
