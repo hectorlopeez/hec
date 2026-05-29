@@ -2420,10 +2420,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     <span class="bot-tab-icon">🔁</span>
     <span class="bot-tab-label">Subs</span>
   </button>
-  <button class="bot-tab" data-tab="incoming">
-    <span class="bot-tab-icon">📦</span>
-    <span class="bot-tab-label">Orders</span>
-  </button>
   <button class="bot-tab" data-tab="wish">
     <span class="bot-tab-icon">🎯</span>
     <span class="bot-tab-label">Wishlist</span>
@@ -2497,7 +2493,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   tabs.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
   const savedTab = storeGet(TAB_KEY);
-  setActiveTab(savedTab && ['net','subs','incoming','wish','flow','log'].includes(savedTab) ? savedTab : 'net');
+  setActiveTab(savedTab && ['net','subs','wish','flow','log'].includes(savedTab) ? savedTab : 'net');
 
   // ============================================================
   // NET WORTH (copied from the main dashboard, verbatim logic)
@@ -3988,27 +3984,81 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     const emptyEl = document.getElementById('flowEmpty');
     if (!svg || !wrap) return;
 
+    // Mix two sources:
+    //   - recurring subs  (each → monthly equivalent)
+    //   - activity-log expenses in the current period (per entry)
+    // Items are grouped by (category, name) so repeated transactions
+    // collapse into one node.
     const subs = (storeGet('subs') || []).filter(s => s && s.name);
-    const monthlyByCat = new Map();   // cat -> total CHF/mo
-    const itemsByCat = new Map();     // cat -> [{ name, monthlyCHF }, ...]
-    let totalMonthly = 0;
+    const activity = storeGet('nw:activity') || [];
 
+    const factor = (_flowView === 'year') ? 12 : 1;
+    const periodStart = _flowView === 'year'
+      ? new Date(new Date().getFullYear(), 0, 1).getTime()
+      : new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+
+    // (category, name) → { name, periodCHF, color, cat }
+    const itemKey = (cat, n) => cat + '|' + n;
+    const items = new Map();
+    const monthlyByCat = new Map();   // cat -> total CHF for the chosen period
+    let totalPeriodSpend = 0;
+
+    function addItem(cat, name, valueCHF, color) {
+      if (!(valueCHF > 0)) return;
+      const k = itemKey(cat, name);
+      const cur = items.get(k);
+      if (cur) cur.periodCHF += valueCHF;
+      else items.set(k, { name, periodCHF: valueCHF, color, cat });
+      monthlyByCat.set(cat, (monthlyByCat.get(cat) || 0) + valueCHF);
+      totalPeriodSpend += valueCHF;
+    }
+
+    // Subs: monthly equivalent × factor (months in period)
     subs.forEach(s => {
-      const m = monthlyEquivalent(s);
-      if (!(m > 0)) return;
+      const monthlyCHF = monthlyEquivalent(s);
+      if (!(monthlyCHF > 0)) return;
       const rule = classifyFlowCategory(s);
-      const cat = rule.cat;
-      monthlyByCat.set(cat, (monthlyByCat.get(cat) || 0) + m);
-      const arr = itemsByCat.get(cat) || [];
-      arr.push({ name: s.name, monthlyCHF: m, color: rule.color });
-      itemsByCat.set(cat, arr);
-      totalMonthly += m;
+      addItem(rule.cat, s.name, monthlyCHF * factor, rule.color);
     });
 
-    const incomeMonthly = getMonthlyIncomeCHF();
-    const factor = (_flowView === 'year') ? 12 : 1;
-    const outTotal = totalMonthly * factor;
-    const inTotal  = incomeMonthly * factor;
+    // Activity log expenses in current period
+    activity.forEach(e => {
+      if (!e || typeof e.ts !== 'number') return;
+      if (e.ts < periodStart) return;
+      const isExpense = e.kind === 'expense' || (e.kind !== 'income' && (Number(e.delta) || 0) < 0);
+      if (!isExpense) return;
+      const amount = Math.abs(Number(e.delta) || 0);
+      if (!(amount > 0)) return;
+      const cat = e.category || classifyFlowCategory({ name: e.name }).cat;
+      const rule = FLOW_CAT_RULES.find(r => r.cat === cat) || FLOW_CAT_RULES[FLOW_CAT_RULES.length - 1];
+      // Strip the "Account · " prefix that the +$ modal prepends so the
+      // node label reads as the note (or the account, if no note).
+      let name = e.name || '(unnamed)';
+      const dot = name.indexOf(' · ');
+      if (dot > -1) name = name.slice(dot + 3);
+      addItem(rule.cat, name, amount, rule.color);
+    });
+
+    // For the legacy variables expected later in the function:
+    const itemsByCat = new Map(); // cat -> [{ name, monthlyCHF, color }]
+    items.forEach(v => {
+      const arr = itemsByCat.get(v.cat) || [];
+      arr.push({ name: v.name, monthlyCHF: v.periodCHF, color: v.color });
+      itemsByCat.set(v.cat, arr);
+    });
+    const totalMonthly = totalPeriodSpend; // (already includes period factor)
+
+    // Income for the period
+    let inTotalRaw = 0;
+    activity.forEach(e => {
+      if (!e || typeof e.ts !== 'number') return;
+      if (e.ts < periodStart) return;
+      const isIncome = e.kind === 'income' || (e.kind !== 'expense' && (Number(e.delta) || 0) > 0);
+      if (!isIncome) return;
+      inTotalRaw += Math.max(0, Number(e.delta) || 0);
+    });
+    const outTotal = totalPeriodSpend; // already includes factor for subs * 12
+    const inTotal  = inTotalRaw;
     const leftover = inTotal - outTotal;
 
     document.getElementById('flowStatIn').textContent  = inTotal  > 0 ? fmtFlow(inTotal)  : '—';
@@ -4123,14 +4173,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     const leftColor = inTotal > 0 ? '#34D399' : '#7DD3FC';
     parts.push(svgNode(xLeftCol, incY, COL_W, incH, leftColor, leftLabel, totalForLeft, 'left'));
 
-    // CATEGORY nodes
+    // CATEGORY nodes (values already include the period factor)
     catLayouts.forEach(c => {
-      parts.push(svgNode(xCatLeft, c.y, COL_W, c.h, c.rule.color, c.cat, c.val * factor, 'mid', { dataCat: c.cat }));
+      parts.push(svgNode(xCatLeft, c.y, COL_W, c.h, c.rule.color, c.cat, c.val, 'mid', { dataCat: c.cat }));
     });
 
     // ITEM nodes + their labels (right column)
     itemsWithH.forEach(it => {
-      parts.push(svgNode(xItemLeft, it.y, COL_W, it.h, it.ruleColor, it.name, it.monthlyCHF * factor, 'right', { dataCat: it.cat, dataName: it.name }));
+      parts.push(svgNode(xItemLeft, it.y, COL_W, it.h, it.ruleColor, it.name, it.monthlyCHF, 'right', { dataCat: it.cat, dataName: it.name }));
     });
 
     // LINKS Income -> Categories
@@ -4168,7 +4218,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   function svgNode(x, y, w, h, color, label, amount, side, opts) {
     opts = opts || {};
     const dataAttrs = (opts.dataCat ? ' data-cat="' + escapeHtml(opts.dataCat) + '"' : '') +
-                      (opts.dataName ? ' data-name="' + escapeHtml(opts.dataName) + '"' : '');
+                      (opts.dataName ? ' data-name="' + escapeHtml(opts.dataName) + '"' : '') +
+                      ' data-amount="' + (Number(amount) || 0) + '"';
     const cls = 'flow-node flow-node-' + side + (opts.dataCat ? ' flow-node-cat-' + slug(opts.dataCat) : '');
     let labelX, labelAnchor;
     if (side === 'left')  { labelX = x + w + 6;  labelAnchor = 'start'; }
@@ -4224,16 +4275,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         const cat = el.getAttribute('data-cat');
         const name = el.getAttribute('data-name');
         const label = name || cat || '';
-        const cats = catLookup();
-        let amount = 0;
-        if (name) {
-          const subs = (storeGet('subs') || []).filter(s => s && s.name === name);
-          subs.forEach(s => amount += monthlyEquivalent(s));
-        } else if (cat) {
-          amount = cats.get(cat) || 0;
+        // For nodes the amount is stored on the element. Links inherit
+        // the amount of their owning category.
+        let amount = parseFloat(el.getAttribute('data-amount')) || 0;
+        if (!amount && cat) {
+          const node = svg.querySelector('.flow-node[data-cat="' + cssEsc(cat) + '"]:not([data-name])');
+          if (node) amount = parseFloat(node.getAttribute('data-amount')) || 0;
         }
-        const factor = (_flowView === 'year') ? 12 : 1;
-        tooltip.innerHTML = '<span class="flow-tooltip-label">' + escapeHtml(label) + '</span><span class="flow-tooltip-amt">' + escapeHtml(fmtFlow(amount * factor)) + (_flowView === 'year' ? '/yr' : '/mo') + '</span>';
+        const suffix = (_flowView === 'year') ? '/yr' : '/mo';
+        tooltip.innerHTML = '<span class="flow-tooltip-label">' + escapeHtml(label) + '</span><span class="flow-tooltip-amt">' + escapeHtml(fmtFlow(amount)) + suffix + '</span>';
         tooltip.hidden = false;
         positionFlowTooltip(ev);
         requestAnimationFrame(() => tooltip.classList.add('show'));

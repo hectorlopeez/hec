@@ -324,6 +324,28 @@ body.has-bottombar {
   font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
   text-align: center;
 }
+.inc-modal-label-ccy {
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  margin-left: 2px;
+}
+.inc-modal-amount-wrap {
+  position: relative;
+}
+.inc-modal-amount-ccy {
+  position: absolute;
+  left: 16px; top: 50%;
+  transform: translateY(-50%);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 22px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 700;
+  pointer-events: none;
+}
+.inc-modal-amount-wrap .inc-modal-input.amount {
+  padding-left: 38px;
+  text-align: left;
+}
 .inc-modal-actions {
   display: flex; gap: 8px; margin-top: 18px;
 }
@@ -479,8 +501,11 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       <button type="button" class="kind-expense" data-kind="expense" role="tab">− Expense</button>
     </div>
     <div class="inc-modal-row">
-      <label class="inc-modal-label" for="incAmount">Amount</label>
-      <input class="inc-modal-input amount" id="incAmount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+      <label class="inc-modal-label" for="incAmount">Amount <span class="inc-modal-label-ccy">(EUR)</span></label>
+      <div class="inc-modal-amount-wrap">
+        <span class="inc-modal-amount-ccy" aria-hidden="true">€</span>
+        <input class="inc-modal-input amount" id="incAmount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" />
+      </div>
     </div>
     <div class="inc-modal-row">
       <label class="inc-modal-label" for="incAccount"><span id="incAccountLabel">Into account</span></label>
@@ -653,7 +678,41 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     sync();
   }
 
-  // -------- Income quick-add --------
+  // -------- Currency conversion (input EUR → storage CHF) --------
+  // All NW amounts are stored in CHF (legacy from finance.html). The +$
+  // modal accepts amounts in EUR (Hector's mental currency) and converts
+  // before saving so the displayed balance changes by exactly the amount
+  // he typed when finance.html is viewed in EUR.
+  function getCachedRates() {
+    try { return JSON.parse(localStorage.getItem('nw_exchange_rates')); } catch (e) { return null; }
+  }
+  function ratesAreFresh(r) {
+    return r && r.fetched && (Date.now() - r.fetched < 24 * 3600 * 1000);
+  }
+  function refreshExchangeRates() {
+    // Fire-and-forget; if it fails we fall back to 1:1.
+    fetch('https://open.er-api.com/v6/latest/CHF')
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.rates) return;
+        const obj = {
+          fetched: Date.now(),
+          CHF: 1,
+          USD: data.rates.USD || 1,
+          EUR: data.rates.EUR || 1,
+          GBP: data.rates.GBP || 1
+        };
+        try { localStorage.setItem('nw_exchange_rates', JSON.stringify(obj)); } catch (e) {}
+      })
+      .catch(() => {});
+  }
+  function eurToChf(eur) {
+    const r = getCachedRates();
+    if (r && r.EUR && r.EUR > 0) return Number(eur) / r.EUR;
+    return Number(eur); // safe fallback: treat 1:1 if no rate yet
+  }
+
+  // -------- Income / expense quick-add --------
   function getBankAccounts() {
     try {
       const raw = localStorage.getItem('nw:bank');
@@ -795,7 +854,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     if (saveBtn) saveBtn.addEventListener('click', () => {
       const modal = document.getElementById('incModal');
       const kind = (modal && modal.getAttribute('data-kind')) === 'expense' ? 'expense' : 'income';
-      const amount = parseFloat(document.getElementById('incAmount').value);
+      const amountEur = parseFloat(document.getElementById('incAmount').value);
       const selectEl = document.getElementById('incAccount');
       const note = document.getElementById('incNote').value.trim();
       const category = document.getElementById('incCategory').value || 'Other';
@@ -806,7 +865,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       const sel = selectEl.value;
       if (sel === '__new__' || accounts.length === 0) accountName = 'Bank';
       else { const idx = parseInt(sel, 10); if (!isNaN(idx) && accounts[idx]) accountName = accounts[idx].name; }
-      const r = applyTransaction(kind, amount, accountName, note, category);
+      // Input is EUR; storage is CHF. Convert with cached rate (1:1 fallback).
+      const amountChf = eurToChf(amountEur);
+      const r = applyTransaction(kind, amountChf, accountName, note, category);
       if (!r.ok) {
         statusEl.textContent = r.error;
         statusEl.classList.add('error');
@@ -814,7 +875,10 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       }
       const verb = kind === 'expense' ? 'Spent' : 'Added';
       const dir  = kind === 'expense' ? 'from' : 'to';
-      statusEl.textContent = verb + ' ' + r.amount + ' ' + dir + ' ' + r.account + (r.category ? ' · ' + r.category : '') + ' ✓';
+      // Show the EUR figure the user typed (not the CHF amount) so the
+      // status matches what they see in finance.html (also EUR).
+      const eurShown = '€' + (Number(amountEur) || 0).toFixed(2);
+      statusEl.textContent = verb + ' ' + eurShown + ' ' + dir + ' ' + r.account + (r.category ? ' · ' + r.category : '') + ' ✓';
       statusEl.classList.add('ok');
       const flashBtn = document.getElementById('topbarIncome');
       if (flashBtn) { flashBtn.classList.add('flash'); setTimeout(() => flashBtn.classList.remove('flash'), 360); }
@@ -834,19 +898,21 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       const raw = expenseRaw || incomeRaw;
       if (!raw) return;
       const kind = expenseRaw ? 'expense' : 'income';
-      const amount = parseFloat(raw);
-      if (isNaN(amount) || amount <= 0) return;
+      const amountEur = parseFloat(raw);
+      if (isNaN(amountEur) || amountEur <= 0) return;
       const note = sp.get('note') || '';
       const account = sp.get('account') || null;
       const category = sp.get('category') || null;
       const auto = sp.get('auto') === '1' || sp.get('silent') === '1';
       if (auto) {
-        const r = applyTransaction(kind, amount, account, note, category);
+        // URL param is EUR; convert to CHF for storage.
+        const amountChf = eurToChf(amountEur);
+        const r = applyTransaction(kind, amountChf, account, note, category);
         const clean = window.location.pathname + window.location.hash;
         window.history.replaceState({}, document.title, clean);
         return r;
       }
-      openIncomeModal({ kind, amount, note, account, category });
+      openIncomeModal({ kind, amount: amountEur, note, account, category });
       const clean = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, clean);
     } catch (e) {}
@@ -1186,6 +1252,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const btn = document.getElementById('topbarWaterAdd');
     if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
     wireIncomeModal();
+    // Make sure FX rates are warm before the user opens the +$ modal so
+    // EUR → CHF conversion is accurate. Cached for 24h.
+    if (!ratesAreFresh(getCachedRates())) refreshExchangeRates();
     handleIncomeUrlParam();
     attachPageTransitions();
     render();
