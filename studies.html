@@ -556,6 +556,92 @@ body::after {
   .studies-row-time { min-width: 80px; font-size: 10.5px; }
   .studies-chat-log { max-height: 260px; }
 }
+
+/* ===== Week overview ===== */
+.studies-week-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.20em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 18px 0 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.studies-week-eyebrow::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+.studies-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+@media (max-width: 720px) {
+  .studies-week { grid-template-columns: 1fr; gap: 6px; }
+}
+.studies-week-day {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 10px 10px 12px;
+  display: flex; flex-direction: column;
+  gap: 6px;
+  min-height: 96px;
+  transition: background 0.18s, border-color 0.18s, transform 0.1s;
+}
+.studies-week-day.is-today {
+  border-color: rgba(125,211,252,0.45);
+  box-shadow: 0 0 0 1px rgba(125,211,252,0.2), 0 8px 24px rgba(0,0,0,0.3);
+}
+.studies-week-day.is-past { opacity: 0.5; }
+@media (max-width: 720px) {
+  .studies-week-day {
+    flex-direction: row; align-items: center; flex-wrap: wrap;
+    min-height: 0;
+  }
+}
+.studies-week-day-head {
+  display: flex; align-items: baseline; gap: 6px;
+  justify-content: space-between;
+}
+.studies-week-dow {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.studies-week-day.is-today .studies-week-dow { color: #7DD3FC; }
+.studies-week-date {
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--text-tertiary);
+}
+.studies-week-hours {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 700;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.studies-week-subjs {
+  display: flex; flex-direction: column; gap: 3px;
+}
+@media (max-width: 720px) {
+  .studies-week-subjs { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .studies-week-day-head { flex: 1 1 100%; }
+}
+.studies-week-chip {
+  font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.studies-week-rest {
+  font-size: 10.5px; font-style: italic;
+  color: var(--text-tertiary);
+}
+.studies-week-empty {
+  font-size: 10px; color: var(--text-quaternary, #4D4B47);
+}
 </style>
 </head>
 <body>
@@ -611,6 +697,11 @@ body::after {
       </div>
     </div>
   </div>
+
+  <div class="studies-week-eyebrow">
+    <span>📅 This week</span>
+  </div>
+  <div class="studies-week" id="studiesWeek"></div>
 
   <div class="studies-chat-eyebrow">
     <span>🤖 Talk to Claude · organize your day</span>
@@ -895,6 +986,83 @@ body::after {
   function renderAll() {
     renderTimeline();
     renderList();
+    renderWeek();
+  }
+
+  // ---------- week overview (read-only) ----------
+  // Maps a block title to a short, recognisable subject label + colour.
+  function subjectOf(title) {
+    const t = (title || '').toLowerCase();
+    if (t.indexOf('program') >= 0)        return { label: 'Programación', color: '#6BE3A4' };
+    if (t.indexOf('métodos') >= 0 || t.indexOf('metodos') >= 0 || t.indexOf('estadíst') >= 0 || t.indexOf('estadist') >= 0) return { label: 'Métodos', color: '#7DD3FC' };
+    if (t.indexOf('topolog') >= 0)        return { label: 'Topología', color: '#C084FC' };
+    if (t.indexOf('estructura') >= 0)     return { label: 'Estructuras', color: '#F2C063' };
+    if (t.indexOf('análisis') >= 0 || t.indexOf('analisis') >= 0 || t.indexOf('vectorial') >= 0) return { label: 'Análisis', color: '#F472B6' };
+    if (t.indexOf('repaso') >= 0)         return { label: 'Repaso', color: '#B8B6B0' };
+    return { label: (title || '').split('·')[0].trim() || 'Estudio', color: '#B8B6B0' };
+  }
+  function mondayOf(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const back = (dt.getDay() + 6) % 7; // 0 = Monday
+    dt.setDate(dt.getDate() - back);
+    return dt;
+  }
+  function renderWeek() {
+    const wrap = document.getElementById('studiesWeek');
+    if (!wrap) return;
+    const todayStr = getActiveDateString();
+    const monday = mondayOf(todayStr);
+    const dows = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    wrap.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(monday);
+      dt.setDate(monday.getDate() + i);
+      const ds = dateToKey(dt);
+      const blocks = (storeGet('schedule:' + ds) || []).filter(Boolean);
+
+      // Aggregate study hours by subject
+      const bySubj = {};
+      let studyMins = 0;
+      blocks.forEach(b => {
+        if (b.kind !== 'study') return;
+        const bb = blockBounds(b); if (!bb) return;
+        const mins = bb.e - bb.s;
+        studyMins += mins;
+        const s = subjectOf(b.title);
+        if (!bySubj[s.label]) bySubj[s.label] = { mins: 0, color: s.color };
+        bySubj[s.label].mins += mins;
+      });
+
+      const cell = document.createElement('div');
+      cell.className = 'studies-week-day';
+      if (ds === todayStr) cell.classList.add('is-today');
+      else if (ds < todayStr) cell.classList.add('is-past');
+
+      const hoursLabel = studyMins > 0 ? (Math.round(studyMins / 6) / 10) + 'h' : '';
+      let chips = '';
+      const subjs = Object.keys(bySubj);
+      if (subjs.length > 0) {
+        chips = '<div class="studies-week-subjs">' + subjs.map(name => {
+          const o = bySubj[name];
+          const h = Math.round(o.mins / 6) / 10;
+          return '<span class="studies-week-chip" style="background:' + o.color + '22;color:' + o.color + '">' +
+            name + ' ' + h + 'h</span>';
+        }).join('') + '</div>';
+      } else if (blocks.length > 0) {
+        chips = '<div class="studies-week-rest">Descanso / libre</div>';
+      } else {
+        chips = '<div class="studies-week-empty">Sin plan</div>';
+      }
+
+      cell.innerHTML =
+        '<div class="studies-week-day-head">' +
+          '<span class="studies-week-dow">' + dows[i] + '</span>' +
+          '<span class="studies-week-date">' + dt.getDate() + '</span>' +
+          (hoursLabel ? '<span class="studies-week-hours">' + hoursLabel + '</span>' : '') +
+        '</div>' + chips;
+      wrap.appendChild(cell);
+    }
   }
 
   // ---------- add form ----------
