@@ -96,6 +96,95 @@ body::after {
   font-size: 12px; font-weight: 600;
   color: var(--text-secondary);
 }
+.studies-import-btn {
+  border: 1px solid rgba(125,211,252,0.20);
+  background: rgba(125,211,252,0.08);
+  color: #7DD3FC;
+  font-family: var(--font);
+  font-size: 12px; font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.1s;
+}
+.studies-import-btn:hover { background: rgba(125,211,252,0.16); }
+.studies-import-btn:active { transform: scale(0.96); }
+
+.studies-import-bg {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 18px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.studies-import-bg.show { display: flex; opacity: 1; }
+.studies-import-modal {
+  position: relative;
+  width: 100%; max-width: 520px;
+  background: rgba(20,20,22,0.94);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+.studies-import-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 0; background: rgba(255,255,255,0.06);
+  color: #FAFAFA; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.studies-import-close:hover { background: rgba(255,255,255,0.12); }
+.studies-import-title {
+  margin: 0 0 6px; font-size: 18px; font-weight: 700; color: #FAFAFA;
+}
+.studies-import-sub {
+  margin: 0 0 14px; font-size: 12.5px; color: var(--text-tertiary); line-height: 1.5;
+}
+.studies-import-textarea {
+  width: 100%; min-height: 200px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.4);
+  color: #FAFAFA;
+  font-family: var(--font-mono);
+  font-size: 12px; line-height: 1.5;
+  outline: none; resize: vertical;
+  -webkit-appearance: none;
+}
+.studies-import-textarea:focus { border-color: rgba(125,211,252,0.45); }
+.studies-import-actions {
+  display: flex; gap: 8px; margin-top: 14px;
+}
+.studies-import-cancel, .studies-import-go {
+  flex: 1; padding: 12px; border-radius: 12px;
+  font-family: var(--font); font-size: 14px; font-weight: 700;
+  cursor: pointer; border: 0;
+}
+.studies-import-cancel {
+  background: rgba(255,255,255,0.06); color: #FAFAFA;
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.studies-import-go {
+  background: linear-gradient(180deg, #7DD3FC 0%, #38BDF8 100%);
+  color: #042F4E;
+  box-shadow: 0 8px 20px rgba(56,189,248,0.30);
+}
+.studies-import-go:hover { filter: brightness(1.06); }
+.studies-import-status {
+  margin-top: 10px; min-height: 16px;
+  font-size: 12px; color: var(--text-tertiary);
+}
+.studies-import-status.ok { color: var(--success); }
+.studies-import-status.error { color: var(--danger); }
 
 .studies-card {
   position: relative;
@@ -476,6 +565,21 @@ body::after {
     <h1 class="studies-title">📚 Today's plan</h1>
     <span class="studies-date" id="studiesDate">—</span>
     <span class="studies-clock" id="studiesClock">—</span>
+    <button class="studies-import-btn" id="studiesImportBtn" type="button" title="Import a multi-day plan">⬇ Import plan</button>
+  </div>
+
+  <div class="studies-import-bg" id="studiesImportBg" role="dialog" aria-modal="true" aria-label="Import plan">
+    <div class="studies-import-modal">
+      <button class="studies-import-close" id="studiesImportClose" aria-label="Close">×</button>
+      <h2 class="studies-import-title">⬇ Import a plan</h2>
+      <p class="studies-import-sub">Paste a plan (JSON) Claude gave you. It fills the schedule for each day. Existing blocks on those days are replaced.</p>
+      <textarea class="studies-import-textarea" id="studiesImportText" placeholder='{ "2026-06-02": [ { "start": "09:30", "end": "10:30", "title": "PROG — repaso", "kind": "study" } ] }' spellcheck="false"></textarea>
+      <div class="studies-import-actions">
+        <button class="studies-import-cancel" id="studiesImportCancel" type="button">Cancel</button>
+        <button class="studies-import-go" id="studiesImportGo" type="button">Import</button>
+      </div>
+      <div class="studies-import-status" id="studiesImportStatus"></div>
+    </div>
   </div>
 
   <div class="studies-card">
@@ -795,6 +899,75 @@ body::after {
 
   // ---------- add form ----------
   function newId() { return 'b' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+
+  // ---------- import a multi-day plan ----------
+  const VALID_KINDS = ['study','class','work','exercise','meal','break','sleep','personal'];
+  const importBg = document.getElementById('studiesImportBg');
+  function openImport() {
+    document.getElementById('studiesImportStatus').textContent = '';
+    document.getElementById('studiesImportStatus').className = 'studies-import-status';
+    importBg.classList.add('show');
+    setTimeout(() => document.getElementById('studiesImportText').focus(), 60);
+  }
+  function closeImport() { importBg.classList.remove('show'); }
+
+  function importPlan(jsonStr) {
+    const statusEl = document.getElementById('studiesImportStatus');
+    statusEl.className = 'studies-import-status';
+    let data;
+    try {
+      data = JSON.parse(jsonStr);
+    } catch (e) {
+      statusEl.textContent = 'Invalid JSON: ' + (e.message || 'parse error');
+      statusEl.classList.add('error');
+      return;
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      statusEl.textContent = 'Expected an object keyed by date (YYYY-MM-DD).';
+      statusEl.classList.add('error');
+      return;
+    }
+    let days = 0, blocks = 0;
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    for (const dateKey of Object.keys(data)) {
+      if (!dateRe.test(dateKey)) {
+        statusEl.textContent = 'Bad date key: "' + dateKey + '" (use YYYY-MM-DD).';
+        statusEl.classList.add('error');
+        return;
+      }
+      const arr = data[dateKey];
+      if (!Array.isArray(arr)) continue;
+      const cleaned = [];
+      arr.forEach(b => {
+        if (!b || typeof b !== 'object') return;
+        const start = String(b.start || '').trim();
+        const end   = String(b.end || '').trim();
+        const title = String(b.title || '').trim();
+        let kind = String(b.kind || 'study').trim().toLowerCase();
+        if (VALID_KINDS.indexOf(kind) < 0) kind = 'study';
+        if (!parseHM(start) || !parseHM(end) || !title) return;
+        cleaned.push({ id: newId(), start, end, title, kind, done: false });
+        blocks++;
+      });
+      storeSet('schedule:' + dateKey, cleaned);
+      days++;
+    }
+    statusEl.textContent = 'Imported ' + blocks + ' block' + (blocks === 1 ? '' : 's') + ' across ' + days + ' day' + (days === 1 ? '' : 's') + ' ✓';
+    statusEl.classList.add('ok');
+    renderAll();
+    setTimeout(closeImport, 1100);
+  }
+
+  document.getElementById('studiesImportBtn').addEventListener('click', openImport);
+  document.getElementById('studiesImportClose').addEventListener('click', closeImport);
+  document.getElementById('studiesImportCancel').addEventListener('click', closeImport);
+  importBg.addEventListener('click', (e) => { if (e.target === importBg) closeImport(); });
+  document.getElementById('studiesImportGo').addEventListener('click', () => {
+    importPlan(document.getElementById('studiesImportText').value);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && importBg.classList.contains('show')) closeImport();
+  });
 
   const addToggle = document.getElementById('studiesAddToggle');
   const addForm   = document.getElementById('studiesAddForm');
