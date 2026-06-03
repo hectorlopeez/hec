@@ -2434,23 +2434,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <div class="card flow-hero">
     <div class="flow-hero-top">
       <div>
-        <div class="flow-hero-eyebrow">MONTHLY FLOW</div>
-        <div class="flow-hero-sub" id="flowSub">Subs and recurring spend, grouped by category.</div>
+        <div class="flow-hero-eyebrow">FLUJO DE GASTOS</div>
+        <div class="flow-hero-sub" id="flowSub">Tus gastos del periodo, agrupados por categoría.</div>
       </div>
       <div class="flow-hero-stats">
         <div class="flow-stat">
-          <div class="flow-stat-label">IN</div>
-          <div class="flow-stat-val flow-stat-in" id="flowStatIn">—</div>
-        </div>
-        <div class="flow-stat-sep">→</div>
-        <div class="flow-stat">
-          <div class="flow-stat-label">OUT</div>
+          <div class="flow-stat-label">GASTO TOTAL</div>
           <div class="flow-stat-val flow-stat-out" id="flowStatOut">—</div>
-        </div>
-        <div class="flow-stat-sep">=</div>
-        <div class="flow-stat">
-          <div class="flow-stat-label">LEFT</div>
-          <div class="flow-stat-val flow-stat-left" id="flowStatLeft">—</div>
         </div>
       </div>
     </div>
@@ -2516,11 +2506,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       </div>
     </div>
     <div class="log-toolbar-row">
-      <span class="log-toolbar-label">Type</span>
-      <div class="flow-segmented" role="tablist" aria-label="Type">
-        <button class="flow-seg active" data-log-type="all" type="button">All</button>
-        <button class="flow-seg" data-log-type="income" type="button">+ Income</button>
-        <button class="flow-seg" data-log-type="expense" type="button">− Expense</button>
+      <span class="log-toolbar-label">Ver</span>
+      <div class="flow-segmented log-type-seg" role="tablist" aria-label="Tipo">
+        <button class="flow-seg active" data-log-type="all" type="button">Todo</button>
+        <button class="flow-seg" data-log-type="expense" type="button">− Gastos</button>
+        <button class="flow-seg" data-log-type="income" type="button">+ Ingresos</button>
       </div>
     </div>
     <div class="log-toolbar-row">
@@ -2547,19 +2537,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       </div>
       <div class="log-cat-list" id="logCatList"></div>
       <div class="log-empty" id="logCatEmpty" hidden>
-        No activity in this period.
+        Sin movimientos en este periodo.
       </div>
     </div>
 
     <!-- Chronological entries -->
     <div class="card log-card">
       <div class="log-list-header">
-        <span class="log-list-title">ENTRIES</span>
+        <span class="log-list-title">MOVIMIENTOS</span>
         <span class="log-list-count" id="logListCount">0</span>
       </div>
       <div class="log-entries" id="logEntries"></div>
       <div class="log-empty" id="logEntriesEmpty" hidden>
-        Nothing matches these filters.
+        Aún no hay gastos ni ingresos registrados. Usa el botón <strong>+$</strong> de la barra superior (en cualquier página que no sea esta) para añadir uno — elige <strong>Gasto</strong> o <strong>Ingreso</strong> y aparecerá aquí.
       </div>
     </div>
   </div>
@@ -4176,12 +4166,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       addItem(rule.cat, s.name, monthlyCHF * factor, rule.color);
     });
 
-    // Activity log expenses in current period
+    // Activity log expenses in current period — real expense transactions
+    // only (logged via +$). Account add/delete movements are not spend.
     activity.forEach(e => {
       if (!e || typeof e.ts !== 'number') return;
       if (e.ts < periodStart) return;
-      const isExpense = e.kind === 'expense' || (e.kind !== 'income' && (Number(e.delta) || 0) < 0);
-      if (!isExpense) return;
+      if (e.kind !== 'expense') return;
       const amount = Math.abs(Number(e.delta) || 0);
       if (!(amount > 0)) return;
       const cat = e.category || classifyFlowCategory({ name: e.name }).cat;
@@ -4202,30 +4192,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       itemsByCat.set(v.cat, arr);
     });
     const totalMonthly = totalPeriodSpend; // (already includes period factor)
+    const outTotal = totalPeriodSpend;
 
-    // Income for the period
-    let inTotalRaw = 0;
-    activity.forEach(e => {
-      if (!e || typeof e.ts !== 'number') return;
-      if (e.ts < periodStart) return;
-      const isIncome = e.kind === 'income' || (e.kind !== 'expense' && (Number(e.delta) || 0) > 0);
-      if (!isIncome) return;
-      inTotalRaw += Math.max(0, Number(e.delta) || 0);
-    });
-    const outTotal = totalPeriodSpend; // already includes factor for subs * 12
-    const inTotal  = inTotalRaw;
-    const leftover = inTotal - outTotal;
-
-    animateCounter(document.getElementById('flowStatIn'),  inTotal,  inTotal  > 0 ? fmtFlow : null, '—');
+    // Flow is expenses-only now — single "total spend" stat.
     animateCounter(document.getElementById('flowStatOut'), outTotal, outTotal > 0 ? fmtFlow : null, '—');
-    const leftEl = document.getElementById('flowStatLeft');
-    if (inTotal > 0 && outTotal > 0) {
-      animateCounter(leftEl, leftover, (v) => (v >= 0 ? '+' : '−') + fmtFlow(Math.abs(v)), '—');
-      leftEl.classList.toggle('is-deficit', leftover < 0);
-    } else {
-      animateCounter(leftEl, 0, null, '—');
-      leftEl.classList.remove('is-deficit');
-    }
 
     if (totalMonthly <= 0) {
       svg.innerHTML = '';
@@ -4322,11 +4292,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     });
     parts.push('</defs>');
 
-    // INCOME / SPEND node (left)
-    const totalForLeft = inTotal > 0 ? inTotal : outTotal;
-    const leftLabel = inTotal > 0 ? 'Income' : 'Spending';
-    const leftColor = inTotal > 0 ? '#34D399' : '#7DD3FC';
-    parts.push(svgNode(xLeftCol, incY, COL_W, incH, leftColor, leftLabel, totalForLeft, 'left'));
+    // Total-spend node (left) — Flow is expenses-only.
+    const leftColor = '#FF8A8A';
+    parts.push(svgNode(xLeftCol, incY, COL_W, incH, leftColor, 'Gastos', outTotal, 'left'));
 
     // CATEGORY nodes (values already include the period factor)
     catLayouts.forEach(c => {
@@ -4528,18 +4496,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   };
   function catMeta(name) { return CAT_META[name] || CAT_META['Other']; }
 
-  // Income entries don't carry a category in the modal; bucket them under "Income".
+  // The Log is a record of real transactions only — income / expense logged
+  // through the +$ button. Account-management movements (kind 'add' /
+  // 'delete' / 'edit', written when you set up or tweak net-worth accounts)
+  // are NOT transactions and must never show up as a 1098 € "income".
+  function entryKind(e) {
+    if (!e) return 'other';
+    if (e.kind === 'income')  return 'income';
+    if (e.kind === 'expense') return 'expense';
+    return 'other';
+  }
   function entryCategory(e) {
     if (e.category) return e.category;
-    if ((e.kind === 'income') || (Number(e.delta) || 0) > 0) return 'Income';
+    if (entryKind(e) === 'income') return 'Income';
     return 'Other';
-  }
-  function entryKind(e) {
-    if (e.kind === 'income' || e.kind === 'expense') return e.kind;
-    const d = Number(e.delta) || 0;
-    if (d > 0) return 'income';
-    if (d < 0) return 'expense';
-    return 'other';
   }
 
   function periodStartTs() {
