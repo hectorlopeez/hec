@@ -889,8 +889,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       if (flashBtn) { flashBtn.classList.add('flash'); setTimeout(() => flashBtn.classList.remove('flash'), 360); }
       setTimeout(closeIncomeModal, 700);
     });
-    document.getElementById('incAmount').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+    const amountInput = document.getElementById('incAmount');
+    if (amountInput) amountInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); if (saveBtn) saveBtn.click(); }
     });
   }
 
@@ -1253,18 +1254,24 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   }
 
   function boot() {
-    injectStyleAndHTML();
-    const btn = document.getElementById('topbarWaterAdd');
-    if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
-    wireIncomeModal();
+    // Each UI step is isolated so a failure in one (e.g. a missing element
+    // on a page that doesn't inject the topbar, like finance.html) can never
+    // stop the global sync from starting. The sync is the critical part.
+    function safely(fn, label) { try { fn(); } catch (e) { slog('boot step failed:', label, e && e.message); } }
+    safely(injectStyleAndHTML, 'injectStyleAndHTML');
+    safely(() => {
+      const btn = document.getElementById('topbarWaterAdd');
+      if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); addWater(); });
+    }, 'waterAdd');
+    safely(wireIncomeModal, 'wireIncomeModal');
     // Make sure FX rates are warm before the user opens the +$ modal so
     // EUR → CHF conversion is accurate. Cached for 24h.
-    if (!ratesAreFresh(getCachedRates())) refreshExchangeRates();
-    handleIncomeUrlParam();
-    attachPageTransitions();
-    render();
-    lockGestures();
-    startModalLock();
+    safely(() => { if (!ratesAreFresh(getCachedRates())) refreshExchangeRates(); }, 'fxRates');
+    safely(handleIncomeUrlParam, 'incomeUrlParam');
+    safely(attachPageTransitions, 'pageTransitions');
+    safely(render, 'render');
+    safely(lockGestures, 'lockGestures');
+    safely(startModalLock, 'modalLock');
     window.addEventListener('storage', render);
     window.addEventListener('focus', render);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
