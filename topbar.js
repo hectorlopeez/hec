@@ -678,39 +678,14 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     sync();
   }
 
-  // -------- Currency conversion (input EUR → storage CHF) --------
-  // All NW amounts are stored in CHF (legacy from finance.html). The +$
-  // modal accepts amounts in EUR (Hector's mental currency) and converts
-  // before saving so the displayed balance changes by exactly the amount
-  // he typed when finance.html is viewed in EUR.
-  function getCachedRates() {
-    try { return JSON.parse(localStorage.getItem('nw_exchange_rates')); } catch (e) { return null; }
-  }
-  function ratesAreFresh(r) {
-    return r && r.fetched && (Date.now() - r.fetched < 24 * 3600 * 1000);
-  }
-  function refreshExchangeRates() {
-    // Fire-and-forget; if it fails we fall back to 1:1.
-    fetch('https://open.er-api.com/v6/latest/CHF')
-      .then(r => r.json())
-      .then(data => {
-        if (!data || !data.rates) return;
-        const obj = {
-          fetched: Date.now(),
-          CHF: 1,
-          USD: data.rates.USD || 1,
-          EUR: data.rates.EUR || 1,
-          GBP: data.rates.GBP || 1
-        };
-        try { localStorage.setItem('nw_exchange_rates', JSON.stringify(obj)); } catch (e) {}
-      })
-      .catch(() => {});
-  }
-  function eurToChf(eur) {
-    const r = getCachedRates();
-    if (r && r.EUR && r.EUR > 0) return Number(eur) / r.EUR;
-    return Number(eur); // safe fallback: treat 1:1 if no rate yet
-  }
+  // -------- Currency: everything is EUR, 1:1, no conversion --------
+  // We used to convert the +$ amount from EUR to a CHF "storage currency",
+  // which made values drift as daily FX rates moved (a 25 € Bizum landing
+  // as 24.96). Now the typed number is stored verbatim — no conversion.
+  function getCachedRates() { return null; }
+  function ratesAreFresh() { return true; }
+  function refreshExchangeRates() { /* no-op: EUR 1:1 */ }
+  function eurToChf(eur) { return Number(eur) || 0; }
 
   // -------- Income / expense quick-add --------
   function getBankAccounts() {
