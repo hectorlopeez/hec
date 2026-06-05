@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Finances</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="topbar.js" defer></script>
+<script src="topbar.js?v=8" defer></script>
 <style>
 :root {
   --bg: #0A0A0B;
@@ -3308,6 +3308,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   // double-charge.
   // ============================================================
   function processAutoDeductSubs() {
+    // DISABLED on purpose: the app must never change a balance by itself.
+    // Every number stays exactly as you typed it — no auto-deductions, no
+    // surprises. (Re-enable by removing this early return if ever wanted.)
+    return false;
+    /* eslint-disable no-unreachable */
     const items = storeGet('subs') || [];
     if (!items.length) return false;
     const now = new Date();
