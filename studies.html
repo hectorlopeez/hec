@@ -96,7 +96,7 @@ body::after {
   font-size: 12px; font-weight: 600;
   color: var(--text-secondary);
 }
-.studies-import-btn {
+.studies-import-btn, .studies-autoplan-btn {
   border: 1px solid rgba(125,211,252,0.20);
   background: rgba(125,211,252,0.08);
   color: #7DD3FC;
@@ -108,8 +108,14 @@ body::after {
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, transform 0.1s;
 }
-.studies-import-btn:hover { background: rgba(125,211,252,0.16); }
-.studies-import-btn:active { transform: scale(0.96); }
+.studies-import-btn:hover, .studies-autoplan-btn:hover { background: rgba(125,211,252,0.16); }
+.studies-import-btn:active, .studies-autoplan-btn:active { transform: scale(0.96); }
+.studies-autoplan-btn {
+  border-color: rgba(110,231,183,0.22);
+  background: rgba(110,231,183,0.10);
+  color: #6EE7B7;
+}
+.studies-autoplan-btn:hover { background: rgba(110,231,183,0.18); }
 
 .studies-import-bg {
   position: fixed; inset: 0; z-index: 200;
@@ -651,6 +657,7 @@ body::after {
     <h1 class="studies-title">📚 Today's plan</h1>
     <span class="studies-date" id="studiesDate">—</span>
     <span class="studies-clock" id="studiesClock">—</span>
+    <button class="studies-autoplan-btn" id="studiesAutoplanBtn" type="button" title="Regenera el plan de estudio hasta los exámenes, reenfocado según los que queden">🔄 Auto-plan</button>
     <button class="studies-import-btn" id="studiesImportBtn" type="button" title="Import a multi-day plan">⬇ Import plan</button>
   </div>
 
@@ -1067,6 +1074,130 @@ body::after {
 
   // ---------- add form ----------
   function newId() { return 'b' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36); }
+
+  // ---------- auto exam planner ----------
+  // Generates a study plan from `fromISO` through the last exam, weighting
+  // each subject by how close its exam is and dropping subjects whose exam
+  // has already passed. Re-run it any day and it re-focuses on what's left.
+  // (Keep this in sync with /tmp/examplan.js used for the initial seed.)
+  function buildExamPlan(fromISO) {
+    const EXAMS = [
+      { subject: 'Metodología de la Programación', date: '2026-06-20', w: 1.0 },
+      { subject: 'Métodos Estadísticos',           date: '2026-06-27', w: 1.0 },
+      { subject: 'Topología',                       date: '2026-07-02', w: 1.0 },
+      { subject: 'Estructuras Algebraicas',         date: '2026-07-01', w: 0.45 }
+      // Análisis Vectorial (2026-06-30) discarded on purpose.
+    ];
+    const LAST = '2026-07-02';
+    const dd = (iso) => { const [y,m,a]=iso.split('-').map(Number); return new Date(y,m-1,a); };
+    const kk = (dt) => dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    const between = (a,b) => Math.round((dd(b)-dd(a))/86400000);
+    const urgency = (du) => du<=2?3.2 : du<=6?2.2 : du<=12?1.35 : 0.8;
+    const activity = (du) => du<=3?'repaso final' : du<=8?'ejercicios' : du<=16?'teoría + ejercicios' : 'teoría';
+
+    function dayTemplate(dt){
+      const dow = dt.getDay();
+      const isDouble = (dow === 1 || dow === 2);
+      const isSunday = (dow === 0);
+      const fixed = [], slots = [];
+      fixed.push(['10:30','12:30','🏃 Entreno + trayecto','exercise']);
+      if (isSunday){
+        slots.push(['12:30','14:00']);
+        fixed.push(['14:00','15:00','🍽️ Comer','meal']);
+        fixed.push(['15:00','23:00','🌙 Tarde libre — desconecta','personal']);
+      } else if (isDouble){
+        slots.push(['12:30','14:00']);
+        fixed.push(['14:00','15:00','🍽️ Comer','meal']);
+        fixed.push(['15:00','15:30','☕ Descanso','break']);
+        fixed.push(['15:30','18:00','🏃 Entreno tarde + trayecto','exercise']);
+        fixed.push(['18:00','18:30','☕ Merienda / descanso','break']);
+        slots.push(['18:30','20:00']); slots.push(['20:00','21:30']);
+      } else {
+        slots.push(['12:30','14:00']);
+        fixed.push(['14:00','15:00','🍽️ Comer','meal']);
+        fixed.push(['15:00','17:00','☕ Descanso','break']);
+        slots.push(['17:00','19:00']);
+        fixed.push(['19:00','20:00','🍽️ Cena','meal']);
+        slots.push(['20:00','22:00']);
+      }
+      return { fixed, slots, isSunday };
+    }
+    function assignSubjects(dt, nSlots){
+      const today = kk(dt);
+      const active = EXAMS.map(e => ({ ...e, du: between(today, e.date) }))
+        .filter(e => e.du >= 0).map(e => ({ ...e, score: e.w * urgency(e.du) }));
+      if (!active.length) return [];
+      const examTomorrow = active.find(e => e.du === 1 && e.w >= 1.0);
+      const out = [];
+      if (examTomorrow){
+        for (let i=0;i<nSlots;i++) out.push({ subject: examTomorrow.subject, act: 'repaso final' });
+        return out;
+      }
+      const remaining = {}; active.forEach(e => remaining[e.subject] = e.score);
+      const totalW = active.reduce((s,e)=>s+e.score,0);
+      const step = totalW / Math.max(1,nSlots);
+      for (let i=0;i<nSlots;i++){
+        let best=null, bestv=-Infinity;
+        for (const e of active){ if (remaining[e.subject] > bestv){ bestv=remaining[e.subject]; best=e; } }
+        out.push({ subject: best.subject, act: activity(best.du) });
+        remaining[best.subject] -= step;
+      }
+      return out;
+    }
+
+    const plan = {};
+    let cur = dd(fromISO);
+    const last = dd(LAST);
+    while (cur <= last){
+      const dt = new Date(cur), today = kk(dt);
+      const tpl = dayTemplate(dt);
+      const blocks = [];
+      const examToday = EXAMS.find(e => e.date === today);
+      if (examToday){
+        blocks.push({ start:'09:00', end:'12:00', title:'🎓 EXAMEN: '+examToday.subject+' — ¡a por todas!', kind:'class' });
+        const rest = EXAMS.map(e=>({ ...e, du: between(today, e.date) })).filter(e => e.du > 0);
+        if (rest.length){
+          rest.sort((a,b)=> (b.w*urgency(b.du))-(a.w*urgency(a.du)));
+          blocks.push({ start:'17:00', end:'19:00', title: rest[0].subject+' · '+activity(rest[0].du), kind:'study' });
+        } else {
+          blocks.push({ start:'13:00', end:'23:00', title:'🎉 ¡Exámenes terminados! Libre', kind:'personal' });
+        }
+      } else {
+        const assigned = assignSubjects(dt, tpl.slots.length);
+        tpl.fixed.forEach(f => blocks.push({ start:f[0], end:f[1], title:f[2], kind:f[3] }));
+        tpl.slots.forEach((s,i) => {
+          const a = assigned[i]; if (!a) return;
+          const title = tpl.isSunday ? ('Repaso · '+a.subject) : (a.subject+' · '+a.act);
+          blocks.push({ start:s[0], end:s[1], title, kind:'study' });
+        });
+      }
+      blocks.sort((a,b)=> a.start.localeCompare(b.start));
+      plan[today] = blocks;
+      cur.setDate(cur.getDate()+1);
+    }
+    return plan;
+  }
+
+  function runAutoPlan() {
+    const from = getActiveDateString();
+    if (from > '2026-07-02') {
+      alert('Los exámenes ya han pasado 🎉. No hay nada que planificar.');
+      return;
+    }
+    if (!confirm('Generar el plan de estudio desde hoy hasta el último examen (2 jul)?\n\nReemplaza los bloques de los días futuros. Los días anteriores a hoy no se tocan.')) return;
+    const plan = buildExamPlan(from);
+    let days = 0, blocks = 0;
+    for (const dateKey of Object.keys(plan)) {
+      const arr = plan[dateKey].map(b => ({ id: newId(), start: b.start, end: b.end, title: b.title, kind: b.kind, done: false }));
+      storeSet('schedule:' + dateKey, arr);
+      days++; blocks += arr.length;
+    }
+    renderAll();
+    alert('Plan generado: ' + blocks + ' bloques en ' + days + ' días, reenfocado según los exámenes que quedan.');
+  }
+
+  const autoplanBtn = document.getElementById('studiesAutoplanBtn');
+  if (autoplanBtn) autoplanBtn.addEventListener('click', runAutoPlan);
 
   // ---------- import a multi-day plan ----------
   const VALID_KINDS = ['study','class','work','exercise','meal','break','sleep','personal'];
