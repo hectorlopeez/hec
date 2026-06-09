@@ -1085,7 +1085,7 @@ body::after {
       { subject: 'Metodología de la Programación', date: '2026-06-20', w: 1.0 },
       { subject: 'Métodos Estadísticos',           date: '2026-06-27', w: 1.0 },
       { subject: 'Topología',                       date: '2026-07-02', w: 1.0 },
-      { subject: 'Estructuras Algebraicas',         date: '2026-07-01', w: 0.45 }
+      { subject: 'Estructuras Algebraicas',         date: '2026-07-01', w: 0.6 }
       // Análisis Vectorial (2026-06-30) discarded on purpose.
     ];
     const LAST = '2026-07-02';
@@ -1097,15 +1097,25 @@ body::after {
 
     function dayTemplate(dt){
       const dow = dt.getDay();
-      const isDouble = (dow === 1 || dow === 2);
       const isSunday = (dow === 0);
+      const isSaturday = (dow === 6);
+      const isDouble = (dow === 1 || dow === 2);
       const fixed = [], slots = [];
-      fixed.push(['10:30','12:30','🏃 Entreno + trayecto','exercise']);
       if (isSunday){
-        slots.push(['12:30','14:00']);
+        // Light, no training
+        slots.push(['11:00','13:00']);
         fixed.push(['14:00','15:00','🍽️ Comer','meal']);
         fixed.push(['15:00','23:00','🌙 Tarde libre — desconecta','personal']);
+      } else if (isSaturday){
+        // No training — full study day with a free morning
+        slots.push(['10:00','12:00']);
+        fixed.push(['12:00','12:30','☕ Descanso','break']);
+        slots.push(['12:30','14:00']);
+        fixed.push(['14:00','15:00','🍽️ Comer','meal']);
+        fixed.push(['15:00','17:00','☕ Descanso','break']);
+        slots.push(['17:00','19:00']);
       } else if (isDouble){
+        fixed.push(['10:30','12:30','🏃 Entreno + trayecto','exercise']);
         slots.push(['12:30','14:00']);
         fixed.push(['14:00','15:00','🍽️ Comer','meal']);
         fixed.push(['15:00','15:30','☕ Descanso','break']);
@@ -1113,6 +1123,8 @@ body::after {
         fixed.push(['18:00','18:30','☕ Merienda / descanso','break']);
         slots.push(['18:30','20:00']); slots.push(['20:00','21:30']);
       } else {
+        // Wed–Fri: morning training only
+        fixed.push(['10:30','12:30','🏃 Entreno + trayecto','exercise']);
         slots.push(['12:30','14:00']);
         fixed.push(['14:00','15:00','🍽️ Comer','meal']);
         fixed.push(['15:00','17:00','☕ Descanso','break']);
