@@ -81,6 +81,9 @@ body::after {
 @media (min-width: 1100px) {
   .shell { padding: 32px 36px 120px; }
 }
+@media (min-width: 1500px) {
+  .shell { max-width: 1420px; }
+}
 
 /* ===== Back to dashboard ===== */
 .fin-back-btn {
@@ -2792,7 +2795,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       sliceTotals[cat.key] = sub;
       if (sub > 0) breakdown.push(cat.key + ': ' + fmtMoney(sub));
     });
-    if (netWorthTotal) netWorthTotal.textContent = fmtMoney(grand);
+    if (netWorthTotal) {
+      if (typeof animateCounter === 'function') animateCounter(netWorthTotal, grand, fmtMoney, '€ 0');
+      else netWorthTotal.textContent = fmtMoney(grand);
+    }
     if (netWorthBreakdown) netWorthBreakdown.textContent = breakdown.join('  •  ');
     logNetWorthSnapshot(grand);
     renderNetWorthChart();

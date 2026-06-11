@@ -1262,6 +1262,26 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 .hidden { display: none !important; }
+
+/* ===== Desktop: weight column + workout column ===== */
+@media (min-width: 1000px) {
+  .po-shell {
+    max-width: 1120px;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    column-gap: 30px;
+    align-items: start;
+  }
+  .po-shell > .po-day-pill { grid-column: 1 / -1; justify-self: start; }
+  .po-shell > .wt-section { grid-column: 1; }
+  .po-shell > .po-header { grid-column: 2; }
+  .po-shell > .card { grid-column: 2; }
+  /* Overlays/modals are fixed or hidden — keep them out of the columns. */
+  .po-shell > .wt-overlay,
+  .po-shell > .wt-cam,
+  .po-shell > .wt-viewer,
+  .po-shell > .po-modal { grid-column: 1 / -1; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>

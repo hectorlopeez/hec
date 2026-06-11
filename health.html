@@ -464,6 +464,23 @@ main {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* ===== Desktop: stack + water side by side ===== */
+@media (min-width: 1000px) {
+  main {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 30px;
+    align-items: start;
+    padding-left: 36px; padding-right: 36px;
+  }
+  main > .section-title { grid-column: 1; grid-row: 1; margin-top: 0; }
+  .stack-card { grid-column: 1; grid-row: 2; }
+  .water-embed { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; }
+  .water-iframe { height: 100%; min-height: 820px; }
+  .attribution { grid-column: 1 / -1; }
+}
 </style>
 </head>
 <body>
