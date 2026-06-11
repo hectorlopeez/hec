@@ -819,6 +819,53 @@ body::after {
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
+
+/* ===== Desktop layout — a real two-column dashboard ===== */
+@media (min-width: 980px) {
+  body { padding: max(36px, env(safe-area-inset-top)) 36px 80px; }
+  .page {
+    max-width: 1280px;
+    display: grid;
+    grid-template-columns: 1.35fr 0.9fr;
+    grid-template-areas:
+      "hero   ring"
+      "ticker ring"
+      "todo   todo";
+    gap: 16px 22px;
+    align-items: start;
+  }
+  .now-hero    { grid-area: hero;   margin: 0; }
+  .ticker-row  { grid-area: ticker; margin: 0; }
+  .day-ring-wrap {
+    grid-area: ring; margin: 0;
+    height: 100%;
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
+  }
+  .day-ring { width: 200px; height: 200px; }
+  .day-ring-percent { font-size: 48px; }
+  .section { grid-area: todo; margin-top: 6px; }
+
+  /* Today + Plan-tomorrow side by side */
+  .section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-content: start;
+  }
+  .section-title { grid-column: 1 / -1; }
+  .gm-card { margin-bottom: 0; }
+
+  /* Bigger, airier hero on desktop */
+  .now-hero { padding: 26px 28px; }
+  .now-hero-title { font-size: 30px; }
+}
+
+@media (min-width: 1400px) {
+  .page { max-width: 1440px; }
+}
 </style>
 </head>
 <body>

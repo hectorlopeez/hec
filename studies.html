@@ -68,6 +68,14 @@ body::after {
 }
 
 .page { max-width: 1100px; margin: 0 auto; }
+@media (min-width: 1100px) {
+  body { padding: max(36px, env(safe-area-inset-top)) 36px 80px; }
+  .page { max-width: 1320px; }
+  .studies-grid { grid-template-columns: 96px 1fr; gap: 20px; }
+  .studies-timeline { min-height: 760px; }
+  .studies-dash { grid-template-columns: 1fr 340px; gap: 18px; }
+  .studies-row-title { font-size: 15px; }
+}
 
 .studies-head {
   display: flex; align-items: baseline;

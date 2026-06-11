@@ -2809,9 +2809,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   // ============================================================
   const ACTIVITY_KEY = 'nw:activity';
   const ACTIVITY_MAX = 50;
-  function logActivity(catKey, name, deltaCHF, kind) {
+  function logActivity(catKey, name, deltaCHF, kind, category) {
     const arr = storeGet(ACTIVITY_KEY) || [];
-    arr.push({ ts: Date.now(), cat: catKey, name: String(name || ''), delta: Number(deltaCHF) || 0, kind: kind || 'add' });
+    const entry = { ts: Date.now(), cat: catKey, name: String(name || ''), delta: Number(deltaCHF) || 0, kind: kind || 'add' };
+    if (category) entry.category = String(category);
+    arr.push(entry);
     if (arr.length > ACTIVITY_MAX) arr.splice(0, arr.length - ACTIVITY_MAX);
     storeSet(ACTIVITY_KEY, arr);
   }
@@ -3308,11 +3310,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   // double-charge.
   // ============================================================
   function processAutoDeductSubs() {
-    // DISABLED on purpose: the app must never change a balance by itself.
-    // Every number stays exactly as you typed it — no auto-deductions, no
-    // surprises. (Re-enable by removing this early return if ever wanted.)
-    return false;
-    /* eslint-disable no-unreachable */
+    // Re-enabled now that everything is EUR 1:1 (no FX drift). Subs with
+    // auto-deduct ON are charged from their linked account on each renewal,
+    // exactly once per cycle (guarded by lastDeductedAt), with the amount
+    // logged to the activity feed as an expense.
     const items = storeGet('subs') || [];
     if (!items.length) return false;
     const now = new Date();
@@ -3333,7 +3334,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           const cost = Number(it.amount) || 0;
           nwItems[idx].amount = (Number(nwItems[idx].amount) || 0) - cost;
           storeSet('nw:' + it.fromCat, nwItems);
-          logActivity(it.fromCat, nwItems[idx].name, -cost, 'edit');
+          // Log as a real expense so it shows in the Log + Flow under Subscriptions.
+          logActivity(it.fromCat, '🔁 ' + (it.name || 'Suscripción'), -cost, 'expense', 'Subscriptions');
           it.lastDeductedAt = renewalMs;
           changed = true;
         }
