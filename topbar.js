@@ -16,6 +16,71 @@
 
   // -------- CSS --------
   const css = `
+/* ===== Global animated aurora (all pages) ===== */
+.hec-aurora {
+  position: fixed; inset: -25%;
+  z-index: -5;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 38% at 14% 18%, rgba(125,211,252,0.10), transparent 70%),
+    radial-gradient(36% 36% at 86% 12%, rgba(192,132,252,0.10), transparent 70%),
+    radial-gradient(42% 42% at 78% 88%, rgba(110,231,183,0.09), transparent 70%),
+    radial-gradient(38% 38% at 18% 92%, rgba(242,192,99,0.07), transparent 70%);
+  filter: blur(60px) saturate(1.25);
+  animation: hec-aurora-drift 30s ease-in-out infinite alternate;
+}
+@keyframes hec-aurora-drift {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(2.5%, -2%, 0) scale(1.08); }
+  100% { transform: translate3d(-2.5%, 2%, 0) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) { .hec-aurora { animation: none; } }
+
+/* ===== Global micro-interactions (all pages) ===== */
+.gm-card, .card, .stack-card, .day-ring-wrap, .nw-card,
+.flow-card, .log-card, .flow-hero, .log-hero {
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease, border-color 0.2s ease;
+}
+@media (hover: hover) {
+  .gm-card:hover, .stack-card:hover, .day-ring-wrap:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.5);
+  }
+}
+button, .gm-add, .gm-polish, .gm-btn, .bot-tab, .nw-add-btn {
+  transition: transform 0.1s ease, filter 0.15s ease, background 0.15s ease;
+}
+button:active, .gm-btn:active { transform: scale(0.97); }
+
+/* Gentle entrance for top-level content on load */
+@keyframes hec-content-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.hec-animate-in .page > *,
+body.hec-animate-in main > *,
+body.hec-animate-in .shell > * {
+  animation: hec-content-in 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+body.hec-animate-in .page > *:nth-child(1),
+body.hec-animate-in main > *:nth-child(1),
+body.hec-animate-in .shell > *:nth-child(1) { animation-delay: 0.02s; }
+body.hec-animate-in .page > *:nth-child(2),
+body.hec-animate-in main > *:nth-child(2),
+body.hec-animate-in .shell > *:nth-child(2) { animation-delay: 0.07s; }
+body.hec-animate-in .page > *:nth-child(3),
+body.hec-animate-in main > *:nth-child(3),
+body.hec-animate-in .shell > *:nth-child(3) { animation-delay: 0.12s; }
+body.hec-animate-in .page > *:nth-child(4),
+body.hec-animate-in main > *:nth-child(4),
+body.hec-animate-in .shell > *:nth-child(4) { animation-delay: 0.17s; }
+body.hec-animate-in .page > *:nth-child(5),
+body.hec-animate-in main > *:nth-child(5),
+body.hec-animate-in .shell > *:nth-child(5) { animation-delay: 0.22s; }
+@media (prefers-reduced-motion: reduce) {
+  body.hec-animate-in .page > *, body.hec-animate-in main > *, body.hec-animate-in .shell > * { animation: none; }
+}
+
 /* ----- Page transitions (cross-document) ----- */
 @keyframes hec-page-enter {
   from { opacity: 0; }
@@ -558,6 +623,13 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     style.id = 'topbar-style';
     style.textContent = css;
     document.head.appendChild(style);
+    // Global animated aurora behind everything (unless the page already has one).
+    if (!document.querySelector('.hec-aurora, .studies-aurora')) {
+      const aurora = document.createElement('div');
+      aurora.className = 'hec-aurora';
+      aurora.setAttribute('aria-hidden', 'true');
+      document.body.insertBefore(aurora, document.body.firstChild);
+    }
     const topWrap = document.createElement('div');
     topWrap.innerHTML = topbarHtml.trim();
     document.body.insertBefore(topWrap.firstChild, document.body.firstChild);
@@ -572,6 +644,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       t.classList.toggle('active', t.getAttribute('data-page') === active);
     });
     document.body.classList.add('has-bottombar');
+    // Trigger the staggered content entrance once.
+    document.body.classList.add('hec-animate-in');
+    setTimeout(() => document.body.classList.remove('hec-animate-in'), 900);
   }
 
   function calendarDateKey() {
