@@ -563,6 +563,277 @@ body::after {
   .studies-chat-log { max-height: 260px; }
 }
 
+/* ===== Cooler background aurora ===== */
+.studies-aurora {
+  position: fixed; inset: -20%;
+  z-index: -3;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 40% at 15% 20%, rgba(125,211,252,0.12), transparent 70%),
+    radial-gradient(40% 40% at 85% 15%, rgba(192,132,252,0.12), transparent 70%),
+    radial-gradient(45% 45% at 75% 85%, rgba(110,231,183,0.10), transparent 70%),
+    radial-gradient(40% 40% at 20% 90%, rgba(242,192,99,0.08), transparent 70%);
+  filter: blur(60px) saturate(1.2);
+  animation: studies-aurora-drift 28s ease-in-out infinite alternate;
+}
+@keyframes studies-aurora-drift {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(3%, -2%, 0) scale(1.08); }
+  100% { transform: translate3d(-3%, 2%, 0) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) { .studies-aurora { animation: none; } }
+
+/* ===== Entrance animations ===== */
+@keyframes studies-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes studies-pop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.studies-card, .studies-dash, .studies-week-eyebrow, .studies-week, .studies-chat-eyebrow, .studies-chat {
+  animation: studies-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+.studies-dash { animation-delay: 0.02s; }
+.studies-card { animation-delay: 0.08s; }
+.studies-week-eyebrow { animation-delay: 0.12s; }
+.studies-week { animation-delay: 0.16s; }
+@media (prefers-reduced-motion: reduce) {
+  .studies-card, .studies-dash, .studies-week-eyebrow, .studies-week, .studies-chat-eyebrow, .studies-chat { animation: none; }
+}
+
+/* ===== Dashboard row: countdown + today ===== */
+.studies-dash {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (max-width: 820px) { .studies-dash { grid-template-columns: 1fr; } }
+
+/* Exam countdown cards */
+.studies-countdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.cd-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  padding: 12px 13px 13px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  transition: transform 0.18s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s, border-color 0.2s;
+  cursor: default;
+}
+.cd-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.4); }
+.cd-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 80% at 50% 0%, var(--cd-glow, rgba(125,211,252,0.18)), transparent 70%);
+  opacity: 0.7; pointer-events: none;
+}
+.cd-card.is-urgent { border-color: var(--cd-color, #FF6B6B); }
+.cd-card.is-urgent::after {
+  content: ''; position: absolute; inset: 0; border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--cd-color, #FF6B6B);
+  animation: cd-pulse 1.6s ease-in-out infinite; pointer-events: none;
+}
+@keyframes cd-pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.8; } }
+.cd-subject {
+  position: relative;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-secondary);
+  line-height: 1.25; min-height: 28px;
+  margin-bottom: 6px;
+}
+.cd-days {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 30px; font-weight: 800;
+  letter-spacing: -0.04em; line-height: 1;
+  color: var(--cd-color, #FAFAFA);
+  font-variant-numeric: tabular-nums;
+}
+.cd-days small { font-size: 12px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0; }
+.cd-date {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 10px; color: var(--text-tertiary);
+  margin-top: 3px;
+}
+.cd-bar {
+  position: relative;
+  height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  margin-top: 8px; overflow: hidden;
+}
+.cd-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: var(--cd-color, #7DD3FC);
+  width: 0%;
+  transition: width 0.8s cubic-bezier(0.22,1,0.36,1);
+}
+.cd-card.is-done { opacity: 0.45; }
+.cd-card.is-done .cd-days { color: var(--success); }
+
+/* Today progress card */
+.studies-today-card {
+  display: flex; align-items: center; gap: 16px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+}
+.studies-ring-wrap { position: relative; width: 86px; height: 86px; flex-shrink: 0; }
+.studies-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.studies-ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 7; }
+.studies-ring-fill {
+  fill: none; stroke: #6BE3A4; stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.22,1,0.36,1), stroke 0.4s;
+  filter: drop-shadow(0 0 5px rgba(107,227,164,0.5));
+}
+.studies-ring-pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 20px; font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.studies-today-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.studies-today-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.studies-today-main { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.studies-today-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+.studies-streak {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.studies-streak.is-hot { color: #F2C063; }
+.studies-streak.is-hot .studies-streak-fire { filter: drop-shadow(0 0 6px rgba(242,192,99,0.7)); animation: streak-flicker 1.4s ease-in-out infinite; }
+@keyframes streak-flicker { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18) rotate(-4deg); } }
+
+/* ===== Row entrance stagger + active glow ===== */
+.studies-row { animation: studies-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+.studies-row.is-active {
+  animation: studies-fade-up 0.4s cubic-bezier(0.22,1,0.36,1) both, studies-active-glow 2.4s ease-in-out infinite 0.5s;
+}
+@keyframes studies-active-glow {
+  0%,100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 12px 28px rgba(0,0,0,0.35); }
+  50%     { box-shadow: 0 0 0 1px rgba(125,211,252,0.5), 0 12px 34px rgba(125,211,252,0.18); }
+}
+.studies-tl-block.is-active { animation: tl-active-glow 2.4s ease-in-out infinite; }
+@keyframes tl-active-glow {
+  0%,100% { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.55), 0 6px 20px rgba(0,0,0,0.35); }
+  50%     { box-shadow: 0 0 0 1.5px rgba(125,211,252,0.8), 0 6px 24px rgba(125,211,252,0.3); }
+}
+
+/* ===== Pomodoro ===== */
+.studies-pomo-fab {
+  position: fixed;
+  right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 120;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 18px;
+  border: 0; border-radius: 999px;
+  background: linear-gradient(180deg, #FF8A8A 0%, #FF6B6B 100%);
+  color: #2A0A0A; font-family: var(--font); font-size: 14px; font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(255,107,107,0.4);
+  transition: transform 0.12s, filter 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.studies-pomo-fab:hover { filter: brightness(1.06); transform: translateY(-2px); }
+.studies-pomo-fab:active { transform: scale(0.95); }
+.studies-pomo-fab.running { background: linear-gradient(180deg, #6EE7B7 0%, #34D399 100%); color: #042F1E; box-shadow: 0 10px 30px rgba(52,211,153,0.4); }
+.studies-pomo-fab .pomo-fab-time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.studies-pomo-bg {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.studies-pomo-bg.show { display: flex; opacity: 1; }
+.studies-pomo-modal {
+  position: relative;
+  width: 100%; max-width: 360px;
+  background: rgba(18,18,22,0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px; padding: 28px 24px 24px;
+  text-align: center;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+  transform: scale(0.94); transition: transform 0.2s cubic-bezier(0.22,1,0.36,1);
+}
+.studies-pomo-bg.show .studies-pomo-modal { transform: scale(1); }
+.studies-pomo-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%; border: 0;
+  background: rgba(255,255,255,0.06); color: #FAFAFA; font-size: 16px; cursor: pointer;
+}
+.studies-pomo-mode {
+  display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 18px;
+  background: rgba(0,0,0,0.3); border-radius: 12px;
+}
+.studies-pomo-mode button {
+  border: 0; background: transparent; color: var(--text-tertiary);
+  font-family: var(--font); font-size: 12px; font-weight: 700;
+  padding: 7px 14px; border-radius: 9px; cursor: pointer; transition: all 0.15s;
+}
+.studies-pomo-mode button.active { background: rgba(255,255,255,0.1); color: #FAFAFA; }
+.studies-pomo-ring-wrap { position: relative; width: 220px; height: 220px; margin: 0 auto 18px; }
+.studies-pomo-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.pomo-ring-track { fill: none; stroke: rgba(255,255,255,0.07); stroke-width: 10; }
+.pomo-ring-fill {
+  fill: none; stroke: #FF6B6B; stroke-width: 10; stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s linear, stroke 0.3s;
+}
+.studies-pomo-bg[data-mode="focus"] .pomo-ring-fill { stroke: #FF6B6B; }
+.studies-pomo-bg[data-mode="break"] .pomo-ring-fill { stroke: #6EE7B7; }
+.studies-pomo-time {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.studies-pomo-clock {
+  font-family: var(--font-mono); font-size: 48px; font-weight: 800;
+  color: #FAFAFA; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.studies-pomo-state { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin-top: 2px; }
+.studies-pomo-rounds { font-size: 11px; color: var(--text-tertiary); margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+.studies-pomo-controls { display: flex; gap: 8px; }
+.studies-pomo-controls button {
+  flex: 1; padding: 13px; border-radius: 13px; border: 0;
+  font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer;
+  transition: filter 0.15s, transform 0.1s, background 0.15s;
+}
+.pomo-start { background: linear-gradient(180deg,#6EE7B7,#34D399); color:#042F1E; }
+.pomo-start.is-pause { background: linear-gradient(180deg,#F2C063,#E0A93D); color:#3A2A05; }
+.pomo-reset { background: rgba(255,255,255,0.06); color:#FAFAFA; border:1px solid rgba(255,255,255,0.1); flex:0 0 56px; }
+.studies-pomo-controls button:hover { filter: brightness(1.08); }
+.studies-pomo-controls button:active { transform: scale(0.96); }
+
+/* ===== Confetti ===== */
+.studies-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 300; overflow: hidden; }
+.confetti-bit { position: absolute; width: 9px; height: 14px; top: -20px; will-change: transform, opacity; animation: confetti-fall linear forwards; }
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.9; }
+}
+
 /* ===== Week overview ===== */
 .studies-week-eyebrow {
   font-family: var(--font-mono);
@@ -651,6 +922,7 @@ body::after {
 </style>
 </head>
 <body>
+<div class="studies-aurora" aria-hidden="true"></div>
 <div class="page">
 
   <div class="studies-head">
@@ -659,6 +931,26 @@ body::after {
     <span class="studies-clock" id="studiesClock">—</span>
     <button class="studies-autoplan-btn" id="studiesAutoplanBtn" type="button" title="Regenera el plan de estudio hasta los exámenes, reenfocado según los que queden">🔄 Auto-plan</button>
     <button class="studies-import-btn" id="studiesImportBtn" type="button" title="Import a multi-day plan">⬇ Import plan</button>
+  </div>
+
+  <!-- Exam countdown + today progress -->
+  <div class="studies-dash">
+    <div class="studies-countdown" id="studiesCountdown"></div>
+    <div class="studies-today-card">
+      <div class="studies-ring-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle class="studies-ring-track" cx="50" cy="50" r="43"></circle>
+          <circle class="studies-ring-fill" id="studiesRingFill" cx="50" cy="50" r="43"></circle>
+        </svg>
+        <div class="studies-ring-pct" id="studiesRingPct">0%</div>
+      </div>
+      <div class="studies-today-info">
+        <div class="studies-today-eyebrow">Hoy</div>
+        <div class="studies-today-main" id="studiesTodayMain">0 / 0 bloques</div>
+        <div class="studies-today-sub" id="studiesTodayHours">0h de 0h hechas</div>
+        <div class="studies-streak" id="studiesStreak"><span class="studies-streak-fire">🔥</span> <span id="studiesStreakTxt">Racha 0 días</span></div>
+      </div>
+    </div>
   </div>
 
   <div class="studies-import-bg" id="studiesImportBg" role="dialog" aria-modal="true" aria-label="Import plan">
@@ -724,12 +1016,51 @@ body::after {
 
 </div>
 
+<!-- Pomodoro focus timer -->
+<button class="studies-pomo-fab" id="studiesPomoFab" type="button" aria-label="Pomodoro focus timer">
+  🍅 <span class="pomo-fab-label">Focus</span>
+</button>
+<div class="studies-pomo-bg" id="studiesPomoBg" data-mode="focus" role="dialog" aria-modal="true" aria-label="Pomodoro">
+  <div class="studies-pomo-modal">
+    <button class="studies-pomo-close" id="studiesPomoClose" aria-label="Close">×</button>
+    <div class="studies-pomo-mode" role="tablist">
+      <button data-pomo-mode="focus" class="active" type="button">🍅 Focus 25</button>
+      <button data-pomo-mode="break" type="button">☕ Break 5</button>
+    </div>
+    <div class="studies-pomo-ring-wrap">
+      <svg viewBox="0 0 100 100">
+        <circle class="pomo-ring-track" cx="50" cy="50" r="44"></circle>
+        <circle class="pomo-ring-fill" id="pomoRingFill" cx="50" cy="50" r="44"></circle>
+      </svg>
+      <div class="studies-pomo-time">
+        <div class="studies-pomo-clock" id="pomoClock">25:00</div>
+        <div class="studies-pomo-state" id="pomoState">Listo</div>
+      </div>
+    </div>
+    <div class="studies-pomo-rounds" id="pomoRounds">🍅 0 pomodoros hoy</div>
+    <div class="studies-pomo-controls">
+      <button class="pomo-start" id="pomoStart" type="button">▶ Empezar</button>
+      <button class="pomo-reset" id="pomoReset" type="button" title="Reiniciar">↺</button>
+    </div>
+  </div>
+</div>
+
+<div class="studies-confetti" id="studiesConfetti" aria-hidden="true"></div>
+
 <script>
 (function () {
   'use strict';
 
   // Paste your Anthropic key to enable Claude. Empty = chat tells you so.
   const ANTHROPIC_API_KEY = '';
+
+  // Exam calendar (for the countdown). Keep in sync with the auto-planner.
+  const EXAM_LIST = [
+    { subject: 'Metodología de la Programación', short: 'Programación', date: '2026-06-20', color: '#6BE3A4' },
+    { subject: 'Métodos Estadísticos',           short: 'Métodos',      date: '2026-06-27', color: '#7DD3FC' },
+    { subject: 'Estructuras Algebraicas',         short: 'Estructuras',  date: '2026-07-01', color: '#F2C063' },
+    { subject: 'Topología',                       short: 'Topología',    date: '2026-07-02', color: '#C084FC' }
+  ];
 
   // ---------- storage ----------
   function storeGet(key) {
@@ -940,9 +1271,17 @@ body::after {
         const list = getSchedule();
         const it = list.find(x => x.id === b.id);
         if (!it) return;
+        const before = studyStatsFor(getActiveDateString());
         it.done = cb.checked;
         setSchedule(list);
         renderAll();
+        // Celebrate when the last study block of the day gets ticked.
+        if (cb.checked && it.kind === 'study') {
+          const after = studyStatsFor(getActiveDateString());
+          if (after.total > 0 && after.done === after.total && before.done < before.total) {
+            launchConfetti();
+          }
+        }
       });
       row.appendChild(cb);
 
@@ -994,6 +1333,99 @@ body::after {
     renderTimeline();
     renderList();
     renderWeek();
+    renderCountdown();
+    renderTodayProgress();
+  }
+
+  // ---------- exam countdown ----------
+  function todayMidnight() {
+    const t = getActiveDateString().split('-').map(Number);
+    return new Date(t[0], t[1] - 1, t[2]).getTime();
+  }
+  function renderCountdown() {
+    const wrap = document.getElementById('studiesCountdown');
+    if (!wrap) return;
+    const today = todayMidnight();
+    wrap.innerHTML = '';
+    EXAM_LIST.forEach(e => {
+      const parts = e.date.split('-').map(Number);
+      const examMs = new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+      const days = Math.round((examMs - today) / 86400000);
+      const card = document.createElement('div');
+      card.className = 'cd-card';
+      card.style.setProperty('--cd-color', e.color);
+      card.style.setProperty('--cd-glow', e.color + '22');
+      let bigNum, sub;
+      if (days < 0) { card.classList.add('is-done'); bigNum = '✓'; sub = 'hecho'; }
+      else if (days === 0) { card.classList.add('is-urgent'); bigNum = 'HOY'; sub = '¡examen hoy!'; }
+      else { bigNum = days + '<small> ' + (days === 1 ? 'día' : 'días') + '</small>'; sub = formatDate(e.date); }
+      if (days >= 0 && days <= 3) card.classList.add('is-urgent');
+      // progress: how far through the study window (from ~25 days out)
+      const windowDays = 25;
+      const pct = Math.max(0, Math.min(100, (1 - days / windowDays) * 100));
+      card.innerHTML =
+        '<div class="cd-subject">' + escapeHtml(e.subject) + '</div>' +
+        '<div class="cd-days">' + bigNum + '</div>' +
+        '<div class="cd-date">' + escapeHtml(sub) + '</div>' +
+        '<div class="cd-bar"><div class="cd-bar-fill" style="width:' + (days < 0 ? 100 : pct.toFixed(0)) + '%"></div></div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  // ---------- today progress + streak ----------
+  function studyStatsFor(dateStr) {
+    const blocks = (storeGet('schedule:' + dateStr) || []).filter(b => b && b.kind === 'study');
+    let total = 0, done = 0, totalMin = 0, doneMin = 0;
+    blocks.forEach(b => {
+      const bb = blockBounds(b); if (!bb) return;
+      const mins = bb.e - bb.s;
+      total++; totalMin += mins;
+      if (b.done) { done++; doneMin += mins; }
+    });
+    return { total, done, totalMin, doneMin };
+  }
+  function renderTodayProgress() {
+    const s = studyStatsFor(getActiveDateString());
+    const pct = s.total ? Math.round(s.done / s.total * 100) : 0;
+    const C = 2 * Math.PI * 43;
+    const fill = document.getElementById('studiesRingFill');
+    if (fill) {
+      fill.setAttribute('stroke-dasharray', C.toFixed(1));
+      fill.setAttribute('stroke-dashoffset', (C * (1 - pct / 100)).toFixed(1));
+      fill.style.stroke = pct >= 100 ? '#6BE3A4' : (pct >= 50 ? '#7DD3FC' : '#F2C063');
+    }
+    const pctEl = document.getElementById('studiesRingPct');
+    if (pctEl) pctEl.textContent = pct + '%';
+    const mainEl = document.getElementById('studiesTodayMain');
+    if (mainEl) mainEl.textContent = s.done + ' / ' + s.total + ' bloques';
+    const hoursEl = document.getElementById('studiesTodayHours');
+    if (hoursEl) hoursEl.textContent = (Math.round(s.doneMin / 6) / 10) + 'h de ' + (Math.round(s.totalMin / 6) / 10) + 'h hechas';
+    // streak
+    const streak = computeStreak();
+    const stEl = document.getElementById('studiesStreak');
+    const stTxt = document.getElementById('studiesStreakTxt');
+    if (stTxt) stTxt.textContent = 'Racha ' + streak + (streak === 1 ? ' día' : ' días');
+    if (stEl) stEl.classList.toggle('is-hot', streak >= 2);
+  }
+  function computeStreak() {
+    // Count consecutive days (ending today or yesterday) where every study
+    // block was done. Days with no study blocks don't break the streak.
+    let streak = 0;
+    const start = getActiveDateString().split('-').map(Number);
+    let d = new Date(start[0], start[1] - 1, start[2]);
+    // If today isn't fully done yet, start counting from yesterday.
+    const todayStats = studyStatsFor(getActiveDateString());
+    if (!(todayStats.total > 0 && todayStats.done === todayStats.total)) {
+      d.setDate(d.getDate() - 1);
+    }
+    for (let i = 0; i < 120; i++) {
+      const ds = dateToKey(d);
+      const st = studyStatsFor(ds);
+      if (st.total === 0) { d.setDate(d.getDate() - 1); continue; } // rest day, skip
+      if (st.done === st.total) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return streak;
   }
 
   // ---------- week overview (read-only) ----------
@@ -1279,6 +1711,132 @@ body::after {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && importBg.classList.contains('show')) closeImport();
   });
+
+  // ---------- confetti ----------
+  function launchConfetti() {
+    const host = document.getElementById('studiesConfetti');
+    if (!host) return;
+    const colors = ['#6BE3A4', '#7DD3FC', '#F2C063', '#C084FC', '#FF8A8A', '#FFFFFF'];
+    const N = 90;
+    for (let i = 0; i < N; i++) {
+      const bit = document.createElement('div');
+      bit.className = 'confetti-bit';
+      bit.style.left = Math.random() * 100 + 'vw';
+      bit.style.background = colors[(Math.random() * colors.length) | 0];
+      bit.style.animationDuration = (1.6 + Math.random() * 1.6) + 's';
+      bit.style.animationDelay = (Math.random() * 0.3) + 's';
+      bit.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+      if (Math.random() < 0.5) bit.style.borderRadius = '50%';
+      host.appendChild(bit);
+      setTimeout(() => bit.remove(), 3600);
+    }
+  }
+
+  // ---------- Pomodoro ----------
+  const POMO = { focus: 25 * 60, break: 5 * 60 };
+  let pomoMode = 'focus';
+  let pomoLeft = POMO.focus;
+  let pomoRunning = false;
+  let pomoTimer = null;
+  const pomoBg = document.getElementById('studiesPomoBg');
+  const pomoFab = document.getElementById('studiesPomoFab');
+
+  function pomoRoundsKey() { return 'pomo_rounds:' + getActiveDateString(); }
+  function pomoGetRounds() { return Number(storeGet(pomoRoundsKey())) || 0; }
+  function pomoSetRounds(n) { try { localStorage.setItem(pomoRoundsKey(), JSON.stringify(n)); } catch (e) {} }
+
+  function pomoFmt(s) { const m = Math.floor(s / 60); const ss = s % 60; return pad2(m) + ':' + pad2(ss); }
+  function pomoRender() {
+    const clock = document.getElementById('pomoClock');
+    const ring = document.getElementById('pomoRingFill');
+    const total = POMO[pomoMode];
+    if (clock) clock.textContent = pomoFmt(pomoLeft);
+    if (ring) {
+      const C = 2 * Math.PI * 44;
+      ring.setAttribute('stroke-dasharray', C.toFixed(1));
+      ring.setAttribute('stroke-dashoffset', (C * (1 - (total - pomoLeft) / total)).toFixed(1));
+    }
+    const st = document.getElementById('pomoState');
+    if (st) st.textContent = pomoRunning ? (pomoMode === 'focus' ? 'Concentración' : 'Descanso') : 'Listo';
+    const rounds = document.getElementById('pomoRounds');
+    if (rounds) rounds.textContent = '🍅 ' + pomoGetRounds() + ' pomodoros hoy';
+    const startBtn = document.getElementById('pomoStart');
+    if (startBtn) { startBtn.textContent = pomoRunning ? '⏸ Pausar' : '▶ Empezar'; startBtn.classList.toggle('is-pause', pomoRunning); }
+    // FAB
+    const fabLabel = pomoFab.querySelector('.pomo-fab-label');
+    if (pomoRunning) { pomoFab.classList.add('running'); if (fabLabel) fabLabel.innerHTML = '<span class="pomo-fab-time">' + pomoFmt(pomoLeft) + '</span>'; }
+    else { pomoFab.classList.remove('running'); if (fabLabel) fabLabel.textContent = 'Focus'; }
+    if (pomoBg) pomoBg.setAttribute('data-mode', pomoMode);
+  }
+  function pomoSetMode(mode) {
+    pomoMode = mode; pomoLeft = POMO[mode]; pomoStop();
+    document.querySelectorAll('[data-pomo-mode]').forEach(b => b.classList.toggle('active', b.getAttribute('data-pomo-mode') === mode));
+    pomoRender();
+  }
+  function pomoTick() {
+    if (pomoLeft > 0) { pomoLeft--; pomoRender(); }
+    if (pomoLeft <= 0) { pomoStop(); pomoComplete(); }
+  }
+  function pomoStart() {
+    if (pomoRunning) { pomoStop(); return; }
+    pomoRunning = true;
+    pomoTimer = setInterval(pomoTick, 1000);
+    pomoRender();
+  }
+  function pomoStop() {
+    pomoRunning = false;
+    if (pomoTimer) { clearInterval(pomoTimer); pomoTimer = null; }
+    pomoRender();
+  }
+  function pomoBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const notes = [880, 1320, 1760];
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.frequency.value = f; o.type = 'sine';
+        o.connect(g); g.connect(ctx.destination);
+        const t = ctx.currentTime + i * 0.18;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+        o.start(t); o.stop(t + 0.42);
+      });
+    } catch (e) {}
+  }
+  function pomoComplete() {
+    pomoBeep();
+    if (pomoMode === 'focus') {
+      pomoSetRounds(pomoGetRounds() + 1);
+      launchConfetti();
+      pomoSetMode('break');
+    } else {
+      pomoSetMode('focus');
+    }
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(pomoMode === 'focus' ? '☕ Descanso terminado — ¡a darle!' : '🍅 Pomodoro completo — descansa 5 min');
+      }
+    } catch (e) {}
+    pomoRender();
+  }
+  function pomoOpen() {
+    if (pomoBg) pomoBg.classList.add('show');
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+    pomoRender();
+  }
+  function pomoClose() { if (pomoBg) pomoBg.classList.remove('show'); }
+
+  if (pomoFab) pomoFab.addEventListener('click', pomoOpen);
+  const pomoCloseBtn = document.getElementById('studiesPomoClose');
+  if (pomoCloseBtn) pomoCloseBtn.addEventListener('click', pomoClose);
+  if (pomoBg) pomoBg.addEventListener('click', (e) => { if (e.target === pomoBg) pomoClose(); });
+  const pomoStartBtn = document.getElementById('pomoStart');
+  if (pomoStartBtn) pomoStartBtn.addEventListener('click', pomoStart);
+  const pomoResetBtn = document.getElementById('pomoReset');
+  if (pomoResetBtn) pomoResetBtn.addEventListener('click', () => { pomoLeft = POMO[pomoMode]; pomoStop(); });
+  document.querySelectorAll('[data-pomo-mode]').forEach(b => b.addEventListener('click', () => pomoSetMode(b.getAttribute('data-pomo-mode'))));
+  pomoRender();
 
   const addToggle = document.getElementById('studiesAddToggle');
   const addForm   = document.getElementById('studiesAddForm');
