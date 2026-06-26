@@ -367,6 +367,58 @@ body.has-bottombar {
   font-size: 10.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.10em;
   color: rgba(255,255,255,0.45);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.inc-cat-toggle {
+  border: 1px solid rgba(125,211,252,0.25);
+  background: rgba(125,211,252,0.10);
+  color: #7DD3FC;
+  font-family: inherit; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: none;
+  padding: 4px 9px; border-radius: 8px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.inc-cat-toggle:hover { background: rgba(125,211,252,0.18); }
+.inc-cat-panel {
+  margin-top: 8px; padding: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+}
+.inc-cat-add {
+  display: grid; grid-template-columns: 46px 1fr 42px auto; gap: 7px; align-items: center;
+}
+.inc-cat-emoji, .inc-cat-name {
+  padding: 9px 10px; border: 1px solid rgba(255,255,255,0.10); border-radius: 9px;
+  background: rgba(0,0,0,0.35); color: #FAFAFA; font-family: inherit; font-size: 14px;
+  outline: none; min-width: 0; -webkit-appearance: none;
+}
+.inc-cat-emoji { text-align: center; }
+.inc-cat-emoji:focus, .inc-cat-name:focus { border-color: rgba(125,211,252,0.45); }
+.inc-cat-color { width: 42px; height: 38px; padding: 2px; border: 1px solid rgba(255,255,255,0.10); border-radius: 9px; background: rgba(0,0,0,0.35); cursor: pointer; }
+.inc-cat-addbtn {
+  padding: 9px 12px; border: 0; border-radius: 9px; white-space: nowrap;
+  background: linear-gradient(180deg,#7DD3FC,#38BDF8); color: #042F4E;
+  font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.inc-cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.inc-cat-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 6px 4px 9px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  font-size: 11.5px; font-weight: 600; color: #FAFAFA;
+}
+.inc-cat-chip button {
+  border: 0; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6);
+  width: 17px; height: 17px; border-radius: 50%; cursor: pointer; font-size: 12px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.inc-cat-chip button:hover { background: rgba(255,107,107,0.3); color: #fff; }
+.inc-cat-chip button:disabled { opacity: 0.25; cursor: not-allowed; }
+@media (max-width: 380px) {
+  .inc-cat-add { grid-template-columns: 44px 1fr; row-gap: 7px; }
+  .inc-cat-color { width: 100%; }
+  .inc-cat-addbtn { grid-column: 1 / -1; }
 }
 .inc-modal-input, .inc-modal-select {
   padding: 11px 14px;
@@ -577,16 +629,20 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
       <select class="inc-modal-select" id="incAccount"></select>
     </div>
     <div class="inc-modal-row is-expense-only">
-      <label class="inc-modal-label" for="incCategory">Category</label>
-      <select class="inc-modal-select" id="incCategory">
-        <option value="Housing">🏠 Housing</option>
-        <option value="Mobility">🚗 Mobility</option>
-        <option value="Food & Drink">🍽️ Food &amp; Drink</option>
-        <option value="Subscriptions">📺 Subscriptions</option>
-        <option value="Insurance">🛡️ Insurance</option>
-        <option value="Personal">✨ Personal</option>
-        <option value="Other" selected>📌 Other</option>
-      </select>
+      <label class="inc-modal-label" for="incCategory">
+        <span>Categoría</span>
+        <button type="button" class="inc-cat-toggle" id="incCatToggle">⚙ Gestionar</button>
+      </label>
+      <select class="inc-modal-select" id="incCategory"></select>
+      <div class="inc-cat-panel" id="incCatPanel" hidden>
+        <div class="inc-cat-add">
+          <input class="inc-cat-emoji" id="incCatEmoji" type="text" maxlength="2" placeholder="🎯" />
+          <input class="inc-cat-name" id="incCatName" type="text" placeholder="Nueva categoría" />
+          <input class="inc-cat-color" id="incCatColor" type="color" value="#7DD3FC" />
+          <button class="inc-cat-addbtn" id="incCatAdd" type="button">+ Añadir</button>
+        </div>
+        <div class="inc-cat-chips" id="incCatChips"></div>
+      </div>
     </div>
     <div class="inc-modal-row">
       <label class="inc-modal-label" for="incNote">Note (optional)</label>
@@ -798,17 +854,26 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
 
   // Expense categories — kept in sync with finance.html's finance_categories.
   const TOPBAR_DEFAULT_CATS = [
-    { name: 'Housing', icon: '🏠' }, { name: 'Mobility', icon: '🚗' },
-    { name: 'Food & Drink', icon: '🍽️' }, { name: 'Subscriptions', icon: '📺' },
-    { name: 'Insurance', icon: '🛡️' }, { name: 'Personal', icon: '✨' },
-    { name: 'Caye', icon: '🍻' }, { name: 'Padel', icon: '🎾' }, { name: 'Other', icon: '📌' }
+    { name: 'Housing', icon: '🏠', color: '#7B6BE3' }, { name: 'Mobility', icon: '🚗', color: '#7DD3FC' },
+    { name: 'Food & Drink', icon: '🍽️', color: '#FFB07A' }, { name: 'Subscriptions', icon: '📺', color: '#F472B6' },
+    { name: 'Insurance', icon: '🛡️', color: '#34D399' }, { name: 'Personal', icon: '✨', color: '#F2C063' },
+    { name: 'Caye', icon: '🍻', color: '#FF8A8A' }, { name: 'Padel', icon: '🎾', color: '#A3E635' },
+    { name: 'Other', icon: '📌', color: '#B8B6B0' }
   ];
   function topbarGetCategories() {
     try {
       const stored = JSON.parse(localStorage.getItem('finance_categories'));
-      if (Array.isArray(stored) && stored.length) return stored.filter(c => c && c.name);
+      if (Array.isArray(stored) && stored.length) {
+        return stored.filter(c => c && c.name).map(c => ({ name: String(c.name), icon: String(c.icon || '📌'), color: String(c.color || '#B8B6B0') }));
+      }
     } catch (e) {}
-    return TOPBAR_DEFAULT_CATS;
+    return TOPBAR_DEFAULT_CATS.slice();
+  }
+  function topbarSetCategories(arr) {
+    try { localStorage.setItem('finance_categories', JSON.stringify(arr)); } catch (e) {}
+    if (window.hecSync) window.hecSync.pushBucket('finance');
+    try { window.dispatchEvent(new CustomEvent('finance-changed', { detail: { key: 'finance_categories' }})); } catch (e) {}
+    try { window.dispatchEvent(new StorageEvent('storage', { key: 'finance_categories' })); } catch (e) {}
   }
   function populateCategorySelect(selectEl) {
     if (!selectEl) return;
@@ -816,6 +881,52 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     selectEl.innerHTML = cats.map(c =>
       '<option value="' + String(c.name).replace(/"/g, '&quot;') + '">' + (c.icon || '📌') + ' ' + String(c.name) + '</option>'
     ).join('');
+  }
+  function renderCatChips() {
+    const host = document.getElementById('incCatChips');
+    if (!host) return;
+    const cats = topbarGetCategories();
+    host.innerHTML = '';
+    cats.forEach(c => {
+      const isProtected = (c.name === 'Other');
+      const chip = document.createElement('span');
+      chip.className = 'inc-cat-chip';
+      chip.style.borderColor = c.color + '55';
+      chip.innerHTML = (c.icon || '📌') + ' ' + escapeHtmlTB(c.name) +
+        ' <button type="button" title="' + (isProtected ? 'Protegida' : 'Quitar') + '"' + (isProtected ? ' disabled' : '') + '>×</button>';
+      const btn = chip.querySelector('button');
+      if (btn && !isProtected) {
+        btn.addEventListener('click', () => {
+          topbarSetCategories(topbarGetCategories().filter(x => x.name !== c.name));
+          renderCatChips();
+          populateCategorySelect(document.getElementById('incCategory'));
+        });
+      }
+      host.appendChild(chip);
+    });
+  }
+  function escapeHtmlTB(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function addCategoryFromModal() {
+    const nameEl = document.getElementById('incCatName');
+    const emojiEl = document.getElementById('incCatEmoji');
+    const colorEl = document.getElementById('incCatColor');
+    const name = (nameEl.value || '').trim();
+    const icon = (emojiEl.value || '').trim() || '🎯';
+    const color = colorEl.value || '#7DD3FC';
+    if (!name) { nameEl.focus(); return; }
+    const cats = topbarGetCategories();
+    if (cats.some(c => c.name.toLowerCase() === name.toLowerCase()) || name.toLowerCase() === 'income') { nameEl.select(); return; }
+    const otherIdx = cats.findIndex(c => c.name === 'Other');
+    const entry = { name, icon, color };
+    if (otherIdx >= 0) cats.splice(otherIdx, 0, entry); else cats.push(entry);
+    topbarSetCategories(cats);
+    nameEl.value = ''; emojiEl.value = '';
+    renderCatChips();
+    populateCategorySelect(document.getElementById('incCategory'));
+    const sel = document.getElementById('incCategory');
+    if (sel) sel.value = name; // select the newly added one
   }
 
   function populateAccountSelect(selectEl, preferredName) {
@@ -860,6 +971,11 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const statusEl = document.getElementById('incModalStatus');
     populateAccountSelect(accountEl, preset.account);
     populateCategorySelect(catEl);
+    // Reset the category manager panel to collapsed each open.
+    const catPanel = document.getElementById('incCatPanel');
+    const catToggle = document.getElementById('incCatToggle');
+    if (catPanel) catPanel.setAttribute('hidden', '');
+    if (catToggle) catToggle.textContent = '⚙ Gestionar';
     amountEl.value = preset.amount ? String(preset.amount) : '';
     noteEl.value = preset.note ? String(preset.note) : '';
     if (catEl && preset.category) {
@@ -928,6 +1044,20 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     document.querySelectorAll('.inc-modal-kind button').forEach(btn => {
       btn.addEventListener('click', () => setModalKind(btn.getAttribute('data-kind')));
     });
+    // Category manager inside the modal
+    const catToggle = document.getElementById('incCatToggle');
+    const catPanel = document.getElementById('incCatPanel');
+    if (catToggle && catPanel) {
+      catToggle.addEventListener('click', () => {
+        const willShow = catPanel.hasAttribute('hidden');
+        if (willShow) { catPanel.removeAttribute('hidden'); renderCatChips(); catToggle.textContent = '✕ Cerrar'; }
+        else { catPanel.setAttribute('hidden', ''); catToggle.textContent = '⚙ Gestionar'; }
+      });
+    }
+    const catAddBtn = document.getElementById('incCatAdd');
+    if (catAddBtn) catAddBtn.addEventListener('click', addCategoryFromModal);
+    const catNameInput = document.getElementById('incCatName');
+    if (catNameInput) catNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCategoryFromModal(); } });
     const saveBtn = document.getElementById('incModalSave');
     if (saveBtn) saveBtn.addEventListener('click', () => {
       const modal = document.getElementById('incModal');
