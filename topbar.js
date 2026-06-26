@@ -796,6 +796,28 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     try { window.dispatchEvent(new StorageEvent('storage', { key: ACT_KEY })); } catch (e) {}
   }
 
+  // Expense categories — kept in sync with finance.html's finance_categories.
+  const TOPBAR_DEFAULT_CATS = [
+    { name: 'Housing', icon: '🏠' }, { name: 'Mobility', icon: '🚗' },
+    { name: 'Food & Drink', icon: '🍽️' }, { name: 'Subscriptions', icon: '📺' },
+    { name: 'Insurance', icon: '🛡️' }, { name: 'Personal', icon: '✨' },
+    { name: 'Caye', icon: '🍻' }, { name: 'Padel', icon: '🎾' }, { name: 'Other', icon: '📌' }
+  ];
+  function topbarGetCategories() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('finance_categories'));
+      if (Array.isArray(stored) && stored.length) return stored.filter(c => c && c.name);
+    } catch (e) {}
+    return TOPBAR_DEFAULT_CATS;
+  }
+  function populateCategorySelect(selectEl) {
+    if (!selectEl) return;
+    const cats = topbarGetCategories();
+    selectEl.innerHTML = cats.map(c =>
+      '<option value="' + String(c.name).replace(/"/g, '&quot;') + '">' + (c.icon || '📌') + ' ' + String(c.name) + '</option>'
+    ).join('');
+  }
+
   function populateAccountSelect(selectEl, preferredName) {
     const accounts = getBankAccounts();
     selectEl.innerHTML = '';
@@ -837,6 +859,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     const catEl = document.getElementById('incCategory');
     const statusEl = document.getElementById('incModalStatus');
     populateAccountSelect(accountEl, preset.account);
+    populateCategorySelect(catEl);
     amountEl.value = preset.amount ? String(preset.amount) : '';
     noteEl.value = preset.note ? String(preset.note) : '';
     if (catEl && preset.category) {
@@ -984,7 +1007,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   // =============================================================
   const SYNC_BUCKETS = {
     health:  { keys: ['po_water_v1'],                                        prefixes: ['stack:'] },
-    finance: { keys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency'], prefixes: ['nw:']    }
+    finance: { keys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency', 'finance_categories'], prefixes: ['nw:'] }
   };
   function syncOwns(bucket, key) {
     const def = SYNC_BUCKETS[bucket]; if (!def || !key) return false;

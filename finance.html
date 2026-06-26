@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Finances</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="topbar.js?v=9" defer></script>
+<script src="topbar.js?v=10" defer></script>
 <style>
 :root {
   --bg: #0A0A0B;
@@ -2138,6 +2138,103 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (prefers-reduced-motion: reduce) {
   .flow-hero::before { animation: none; opacity: 0.4; }
 }
+
+/* ===== Category manager ===== */
+.log-cat-manage {
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.log-cat-manage:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+
+.catmgr-bg {
+  position: fixed; inset: 0; z-index: 250;
+  background: rgba(0,0,0,0.6);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  display: none; align-items: center; justify-content: center; padding: 18px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.catmgr-bg.show { display: flex; opacity: 1; }
+.catmgr-modal {
+  position: relative; width: 100%; max-width: 460px;
+  max-height: 86vh; overflow-y: auto;
+  background: rgba(18,18,22,0.96);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; padding: 24px 22px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+  transform: scale(0.95); transition: transform 0.2s cubic-bezier(0.22,1,0.36,1);
+}
+.catmgr-bg.show .catmgr-modal { transform: scale(1); }
+.catmgr-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 30px; height: 30px; border-radius: 50%; border: 0;
+  background: rgba(255,255,255,0.06); color: #FAFAFA; font-size: 16px; cursor: pointer;
+}
+.catmgr-title { margin: 0 0 4px; font-size: 19px; font-weight: 700; color: #FAFAFA; }
+.catmgr-sub { margin: 0 0 16px; font-size: 12.5px; color: var(--text-tertiary); line-height: 1.5; }
+.catmgr-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.catmgr-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 11px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  animation: hec-content-in 0.3s ease both;
+}
+.catmgr-row-icon {
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.catmgr-row-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.catmgr-row-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); }
+.catmgr-row-del {
+  border: 0; background: transparent; color: var(--text-tertiary);
+  font-size: 18px; width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.catmgr-row-del:hover { background: rgba(255,107,107,0.16); color: #FF6B6B; }
+.catmgr-row-del:disabled { opacity: 0.25; cursor: not-allowed; }
+.catmgr-add {
+  display: grid; grid-template-columns: 52px 1fr 46px auto; gap: 8px; align-items: center;
+  padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.07);
+}
+.catmgr-emoji, .catmgr-name {
+  padding: 10px 12px; border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  background: rgba(0,0,0,0.32); color: #FAFAFA; font-family: inherit; font-size: 14px;
+  outline: none; -webkit-appearance: none; min-width: 0;
+}
+.catmgr-emoji { text-align: center; }
+.catmgr-name:focus, .catmgr-emoji:focus { border-color: rgba(125,211,252,0.45); }
+.catmgr-color {
+  width: 46px; height: 40px; padding: 2px; border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px; background: rgba(0,0,0,0.32); cursor: pointer;
+}
+.catmgr-add-btn {
+  padding: 10px 14px; border: 0; border-radius: 10px;
+  background: linear-gradient(180deg,#7DD3FC,#38BDF8); color: #042F4E;
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.catmgr-add-btn:hover { filter: brightness(1.06); }
+.catmgr-status { margin-top: 10px; min-height: 14px; font-size: 12px; color: var(--text-tertiary); }
+.catmgr-status.error { color: var(--danger); }
+@media (max-width: 480px) {
+  .catmgr-add { grid-template-columns: 44px 1fr; row-gap: 8px; }
+  .catmgr-color { width: 100%; }
+  .catmgr-add-btn { grid-column: 1 / -1; }
+}
+
+/* Per-entry category chip is clickable */
+.log-entry-cat { cursor: pointer; border-radius: 5px; padding: 1px 3px; margin: -1px -3px; transition: background 0.15s; }
+.log-entry-cat:hover { background: rgba(255,255,255,0.08); }
+.log-entry-cat-select {
+  font-family: inherit; font-size: 11px;
+  background: rgba(0,0,0,0.4); color: var(--text-primary);
+  border: 1px solid rgba(125,211,252,0.45); border-radius: 6px; padding: 2px 4px; outline: none;
+}
 </style>
 </head>
 <body>
@@ -2517,17 +2614,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       </div>
     </div>
     <div class="log-toolbar-row">
-      <span class="log-toolbar-label">Category</span>
+      <span class="log-toolbar-label">Categoría</span>
       <select class="log-cat-select" id="logCatSelect">
-        <option value="">All categories</option>
-        <option value="Housing">🏠 Housing</option>
-        <option value="Mobility">🚗 Mobility</option>
-        <option value="Food &amp; Drink">🍽️ Food &amp; Drink</option>
-        <option value="Subscriptions">📺 Subscriptions</option>
-        <option value="Insurance">🛡️ Insurance</option>
-        <option value="Personal">✨ Personal</option>
-        <option value="Other">📌 Other</option>
+        <option value="">Todas las categorías</option>
       </select>
+      <button class="log-cat-manage" id="logCatManage" type="button" title="Añadir o quitar categorías">⚙ Categorías</button>
     </div>
   </div>
 
@@ -2558,6 +2649,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </div>
 </div>
 
+</div>
+
+<!-- ===== Category manager modal ===== -->
+<div class="catmgr-bg" id="catmgrBg" role="dialog" aria-modal="true" aria-label="Categorías">
+  <div class="catmgr-modal">
+    <button class="catmgr-close" id="catmgrClose" aria-label="Cerrar">×</button>
+    <h2 class="catmgr-title">⚙ Categorías</h2>
+    <p class="catmgr-sub">Añade o quita categorías de gasto. Se sincronizan con el botón +$ y el resto de la app.</p>
+    <div class="catmgr-list" id="catmgrList"></div>
+    <div class="catmgr-add">
+      <input class="catmgr-emoji" id="catmgrEmoji" type="text" maxlength="2" placeholder="🎯" />
+      <input class="catmgr-name" id="catmgrName" type="text" placeholder="Nombre de la categoría" />
+      <input class="catmgr-color" id="catmgrColor" type="color" value="#7DD3FC" />
+      <button class="catmgr-add-btn" id="catmgrAddBtn" type="button">+ Añadir</button>
+    </div>
+    <div class="catmgr-status" id="catmgrStatus"></div>
+  </div>
 </div>
 
 <!-- ===== BOTTOM TAB BAR ===== -->
@@ -2599,7 +2707,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     return typeof k === 'string' && (
       k.indexOf('nw:') === 0 ||
       k === 'subs' || k === 'wishlist' ||
-      k === 'incoming_orders' || k === 'nw_currency'
+      k === 'incoming_orders' || k === 'nw_currency' ||
+      k === 'finance_categories'
     );
   }
   function fireFinanceChange(key) {
@@ -4188,13 +4297,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       const amount = Math.abs(Number(e.delta) || 0);
       if (!(amount > 0)) return;
       const cat = e.category || classifyFlowCategory({ name: e.name }).cat;
-      const rule = FLOW_CAT_RULES.find(r => r.cat === cat) || FLOW_CAT_RULES[FLOW_CAT_RULES.length - 1];
+      // Use the live category colour (covers custom cats like Caye/Padel).
+      const color = catMeta(cat).color;
       // Strip the "Account · " prefix that the +$ modal prepends so the
       // node label reads as the note (or the account, if no note).
       let name = e.name || '(unnamed)';
       const dot = name.indexOf(' · ');
       if (dot > -1) name = name.slice(dot + 3);
-      addItem(rule.cat, name, amount, rule.color);
+      addItem(cat, name, amount, color);
     });
 
     // For the legacy variables expected later in the function:
@@ -4497,17 +4607,120 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   let _logCat    = '';        // '' or category name
   let _logFocusedCat = '';    // category that the user tapped to filter inline
 
-  const CAT_META = {
-    'Housing':       { icon: '🏠', color: '#7B6BE3' },
-    'Mobility':      { icon: '🚗', color: '#7DD3FC' },
-    'Food & Drink':  { icon: '🍽️', color: '#FFB07A' },
-    'Subscriptions': { icon: '📺', color: '#F472B6' },
-    'Insurance':     { icon: '🛡️', color: '#34D399' },
-    'Personal':      { icon: '✨', color: '#F2C063' },
-    'Income':        { icon: '💸', color: '#6BE3A4' },
-    'Other':         { icon: '📌', color: '#B8B6B0' }
-  };
-  function catMeta(name) { return CAT_META[name] || CAT_META['Other']; }
+  // ===== Categories — user-editable, stored under finance_categories =====
+  const DEFAULT_CATEGORIES = [
+    { name: 'Housing',       icon: '🏠', color: '#7B6BE3' },
+    { name: 'Mobility',      icon: '🚗', color: '#7DD3FC' },
+    { name: 'Food & Drink',  icon: '🍽️', color: '#FFB07A' },
+    { name: 'Subscriptions', icon: '📺', color: '#F472B6' },
+    { name: 'Insurance',     icon: '🛡️', color: '#34D399' },
+    { name: 'Personal',      icon: '✨', color: '#F2C063' },
+    { name: 'Caye',          icon: '🍻', color: '#FF8A8A' },
+    { name: 'Padel',         icon: '🎾', color: '#A3E635' },
+    { name: 'Other',         icon: '📌', color: '#B8B6B0' }
+  ];
+  // 'Income' and 'Other' are special and always available even if removed.
+  const SPECIAL_CATS = { 'Income': { icon: '💸', color: '#6BE3A4' }, 'Other': { icon: '📌', color: '#B8B6B0' } };
+  function getCategories() {
+    const stored = storeGet('finance_categories');
+    if (Array.isArray(stored) && stored.length) {
+      return stored.filter(c => c && c.name).map(c => ({ name: String(c.name), icon: String(c.icon || '📌'), color: String(c.color || '#B8B6B0') }));
+    }
+    return DEFAULT_CATEGORIES.slice();
+  }
+  function setCategories(arr) { storeSet('finance_categories', arr); }
+  function catMeta(name) {
+    const found = getCategories().find(c => c.name === name);
+    if (found) return found;
+    if (SPECIAL_CATS[name]) return Object.assign({ name }, SPECIAL_CATS[name]);
+    return { name: name || 'Other', icon: '📌', color: '#B8B6B0' };
+  }
+
+  // Build the list of categories selectable for a transaction (no Income).
+  function expenseCategoryNames() {
+    const names = getCategories().map(c => c.name);
+    if (names.indexOf('Other') < 0) names.push('Other');
+    return names;
+  }
+
+  // Populate the Log's category filter <select> with current categories.
+  function renderCategoryFilter() {
+    const sel = document.getElementById('logCatSelect');
+    if (!sel) return;
+    const cur = sel.value;
+    const cats = getCategories();
+    let html = '<option value="">Todas las categorías</option>';
+    html += '<option value="Income">💸 Income</option>';
+    cats.forEach(c => {
+      html += '<option value="' + escapeHtml(c.name) + '">' + c.icon + ' ' + escapeHtml(c.name) + '</option>';
+    });
+    sel.innerHTML = html;
+    // keep selection if it still exists
+    if (Array.from(sel.options).some(o => o.value === cur)) sel.value = cur;
+    else { sel.value = ''; _logCat = ''; }
+  }
+
+  // ----- Category manager modal -----
+  function renderCatMgrList() {
+    const list = document.getElementById('catmgrList');
+    if (!list) return;
+    const cats = getCategories();
+    list.innerHTML = '';
+    cats.forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'catmgr-row';
+      const isProtected = (c.name === 'Other');
+      row.innerHTML =
+        '<span class="catmgr-row-icon" style="background:' + c.color + '22">' + c.icon + '</span>' +
+        '<span class="catmgr-row-name">' + escapeHtml(c.name) + '</span>' +
+        '<span class="catmgr-row-tag" style="color:' + c.color + '">' + c.color + '</span>' +
+        '<button class="catmgr-row-del" type="button" title="' + (isProtected ? 'No se puede quitar' : 'Quitar') + '"' + (isProtected ? ' disabled' : '') + '>×</button>';
+      const del = row.querySelector('.catmgr-row-del');
+      if (del && !isProtected) {
+        del.addEventListener('click', () => {
+          const next = getCategories().filter(x => x.name !== c.name);
+          setCategories(next);
+          renderCatMgrList();
+          renderCategoryFilter();
+          renderActivityLog();
+        });
+      }
+      list.appendChild(row);
+    });
+  }
+  function openCatMgr() {
+    const bg = document.getElementById('catmgrBg');
+    if (!bg) return;
+    document.getElementById('catmgrStatus').textContent = '';
+    renderCatMgrList();
+    bg.classList.add('show');
+  }
+  function closeCatMgr() { const bg = document.getElementById('catmgrBg'); if (bg) bg.classList.remove('show'); }
+  function addCategoryFromInputs() {
+    const emojiEl = document.getElementById('catmgrEmoji');
+    const nameEl = document.getElementById('catmgrName');
+    const colorEl = document.getElementById('catmgrColor');
+    const statusEl = document.getElementById('catmgrStatus');
+    const name = (nameEl.value || '').trim();
+    const icon = (emojiEl.value || '').trim() || '🎯';
+    const color = colorEl.value || '#7DD3FC';
+    statusEl.classList.remove('error');
+    if (!name) { statusEl.textContent = 'Pon un nombre.'; statusEl.classList.add('error'); return; }
+    const cats = getCategories();
+    if (cats.some(c => c.name.toLowerCase() === name.toLowerCase()) || name === 'Income') {
+      statusEl.textContent = 'Esa categoría ya existe.'; statusEl.classList.add('error'); return;
+    }
+    // Insert before "Other" so Other stays last.
+    const otherIdx = cats.findIndex(c => c.name === 'Other');
+    const entry = { name, icon, color };
+    if (otherIdx >= 0) cats.splice(otherIdx, 0, entry); else cats.push(entry);
+    setCategories(cats);
+    nameEl.value = ''; emojiEl.value = '';
+    statusEl.textContent = 'Añadida ✓';
+    renderCatMgrList();
+    renderCategoryFilter();
+    renderActivityLog();
+  }
 
   // The Log is a record of real transactions only — income / expense logged
   // through the +$ button. Account-management movements (kind 'add' /
@@ -4699,17 +4912,45 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           const row = document.createElement('div');
           row.className = 'log-entry';
           row.dataset.ts = String(e.ts);
+          const catTitle = isIn ? '' : ' title="Toca para cambiar de categoría"';
           row.innerHTML =
             '<span class="log-entry-when">' + escapeHtml(fmtEntryWhen(e.ts)) + '</span>' +
             '<div class="log-entry-main">' +
               '<span class="log-entry-dot" style="background:' + meta.color + '"></span>' +
               '<div class="log-entry-meta">' +
                 '<div class="log-entry-name">' + escapeHtml(e.name || '(unnamed)') + '</div>' +
-                '<div class="log-entry-cat">' + meta.icon + ' ' + escapeHtml(cat) + '</div>' +
+                '<div class="log-entry-cat"' + catTitle + '>' + meta.icon + ' ' + escapeHtml(cat) + '</div>' +
               '</div>' +
             '</div>' +
             '<span class="log-entry-amt ' + (isIn ? 'is-in' : 'is-out') + '">' + fmtSigned(Number(e.delta) || 0) + '</span>' +
             '<button class="log-entry-del" type="button" aria-label="Delete entry" title="Delete entry">×</button>';
+          // Click the category chip (expenses only) to reassign it inline.
+          if (!isIn) {
+            const chip = row.querySelector('.log-entry-cat');
+            chip.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              if (chip.querySelector('select')) return;
+              const ts = Number(row.dataset.ts);
+              const sel = document.createElement('select');
+              sel.className = 'log-entry-cat-select';
+              sel.innerHTML = expenseCategoryNames().map(n => {
+                const m = catMeta(n);
+                return '<option value="' + escapeHtml(n) + '"' + (n === cat ? ' selected' : '') + '>' + m.icon + ' ' + escapeHtml(n) + '</option>';
+              }).join('');
+              chip.textContent = '';
+              chip.appendChild(sel);
+              sel.focus();
+              const commit = () => {
+                const newCat = sel.value;
+                const all = storeGet(ACTIVITY_KEY) || [];
+                const it = all.find(x => x.ts === ts);
+                if (it && newCat && newCat !== cat) { it.category = newCat; storeSet(ACTIVITY_KEY, all); }
+                renderActivityLog();
+              };
+              sel.addEventListener('change', commit);
+              sel.addEventListener('blur', () => renderActivityLog());
+            });
+          }
           row.querySelector('.log-entry-del').addEventListener('click', (ev) => {
             ev.stopPropagation();
             const ts = Number(row.dataset.ts);
@@ -4750,6 +4991,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     });
   }
 
+  // Category manager wiring
+  const catMgrBtn = document.getElementById('logCatManage');
+  if (catMgrBtn) catMgrBtn.addEventListener('click', openCatMgr);
+  const catMgrClose = document.getElementById('catmgrClose');
+  if (catMgrClose) catMgrClose.addEventListener('click', closeCatMgr);
+  const catMgrBg = document.getElementById('catmgrBg');
+  if (catMgrBg) catMgrBg.addEventListener('click', (e) => { if (e.target === catMgrBg) closeCatMgr(); });
+  const catMgrAdd = document.getElementById('catmgrAddBtn');
+  if (catMgrAdd) catMgrAdd.addEventListener('click', addCategoryFromInputs);
+  const catMgrName = document.getElementById('catmgrName');
+  if (catMgrName) catMgrName.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCategoryFromInputs(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && catMgrBg && catMgrBg.classList.contains('show')) closeCatMgr(); });
+
+  // Populate the category filter from the stored categories.
+  renderCategoryFilter();
+
   // Warm-render so stats are ready when the user taps the tab. Errors
   // here used to be swallowed silently — log them now so problems are
   // visible in Safari Web Inspector.
@@ -4759,6 +5016,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   // Storage events only fire across tabs; the finance-changed event
   // covers same-tab writes.
   window.addEventListener('finance-changed', () => {
+    try { renderCategoryFilter(); } catch (e) {}
     try { renderFlow(); } catch (e) { console.error('[Flow] render failed:', e); }
     try { renderActivityLog(); } catch (e) { console.error('[Log] render failed:', e); }
   });
